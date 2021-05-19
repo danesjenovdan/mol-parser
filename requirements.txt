@@ -1,0 +1,5 @@
+editdistance==0.5.3
+ipython==7.23.1
+Scrapy==2.5.0
+pdftotext==2.1.5
+python-docx==0.8.10
