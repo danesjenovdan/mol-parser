@@ -12,9 +12,16 @@ class PersonParser(BaseParser):
             {
                 'name': data['org_name'],
                 'parser_names': data['org_name'],
-                'classification': 'party'
+                'classification': 'pg'
             }
         )
+        if added_org:
+            data_storage.add_org_membership(
+                {
+                    'member': organization_id,
+                    'organization': data_storage.main_org_id
+                }
+            )
 
         person_id, added_person = data_storage.get_or_add_person(
             data['name'],
@@ -30,7 +37,7 @@ class PersonParser(BaseParser):
                     'organization': organization_id,
                     'on_behalf_of': None,
                     'start_time': data_storage.mandate_start_time.isoformat(),
-                    'role': data['role']
+                    'role': data['role'] if data['role'] else 'member'
                 }
             )
             data_storage.add_membership(

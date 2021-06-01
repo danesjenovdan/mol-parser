@@ -7,12 +7,18 @@ from datetime import datetime
 import logging
 import editdistance
 
+
+class NoneError(Exception):
+    pass
+
+
 class DataStorage(object):
     people = {}
     organizations = {}
     votes = {}
     motions = {}
     sessions = {}
+    sessions_with_speeches = []
     questions = {}
     legislation = {}
     acts = {}
@@ -42,8 +48,8 @@ class DataStorage(object):
                 # TODO od remove
                 #self.klubovi[org['id']] = org['name']
         logging.warning(f'loaded {len(self.organizations)} organizations')
-
         for vote in self.parladata_api.get_votes():
+            logging.warning(vote)
             self.votes[self.get_vote_key(vote)] = vote['id']
         logging.warning(f'loaded {len(self.votes)} votes')
 
@@ -51,8 +57,13 @@ class DataStorage(object):
             self.sessions[f'{session["name"]}_{"_".join(list(map(str, session["organizations"])))}'] = session['id']
         logging.warning(f'loaded {len(self.sessions)} sessions')
 
+        for session in self.sessions.values():
+            speeches = self.parladata_api.get_speeches(session=session)
+            if speeches:
+                self.sessions_with_speeches.append(session)
+
         for motion in self.parladata_api.get_motions():
-            self.motions[motion['gov_id']] = motion['id'] # TODO check if is key good key
+            self.motions[self.get_motion_key(motion)] = motion['id'] # TODO check if is key good key
         logging.warning(f'loaded {len(self.motions)} motions')
 
         for item in self.parladata_api.get_agenda_items():
@@ -87,10 +98,15 @@ class DataStorage(object):
 
 
     def get_vote_key(self, vote):
-        return (vote['name'] + vote['datetime']).strip().lower()
+        if vote['name'] == None:
+            raise NoneError
+        return (vote['name']).strip().lower()
+
+    def get_motion_key(self, motion):
+        return (motion['title'] + motion['datetime']).strip().lower()
 
     def get_agenda_key(self, agenda_item):
-        return (agenda_item['name'] + agenda_item['date']).strip().lower()
+        return (agenda_item['name'] + '_' + agenda_item['datetime']).strip().lower()
 
     def get_id_by_parsername(self, object_type, name):
         """
@@ -136,6 +152,10 @@ class DataStorage(object):
             self.memberships[membership['organization']][membership['member']].append(membership)
         return membership
 
+    def add_org_membership(self, data):
+        membership = self.parladata_api.set_org_membership(data)
+        return membership
+
     def add_or_get_session(self, data):
         key = f'{data["name"]}_{self.main_org_id}'
         if key in self.sessions:
@@ -153,13 +173,20 @@ class DataStorage(object):
         added_ballots = self.parladata_api.set_ballots(data)
 
     def set_motion(self, data):
-        logging.warning(data)
         added_motion = self.parladata_api.set_motion(data)
-        logging.warning(data)
         return added_motion
 
-    def check_if_vote_is_parsed(self, vote):
-        key = self.get_vote_key(vote)
+    def get_or_add_agenda_item(self, data):
+        logging.warning(self.get_agenda_key(data))
+        logging.warning(self.agenda_items.keys())
+        if self.get_agenda_key(data) in self.agenda_items.keys():
+            return self.agenda_items[self.get_agenda_key(data)]
+        else:
+            added_agenda_item = self.parladata_api.set_agenda_item(data)
+            return added_agenda_item['id']
+
+    def check_if_motion_is_parsed(self, vote):
+        key = self.get_motion_key(vote)
         return key in self.votes.keys()
 
     def set_vote(self, data):

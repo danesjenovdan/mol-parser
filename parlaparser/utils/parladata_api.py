@@ -73,6 +73,14 @@ class ParladataApi(object):
     def get_memberships(self):
         return self._get_objects('person-memberships/?role=voter')
 
+    def get_speeches(self, id='', session=None):
+        query = []
+        if session:
+            query.append(f'session={session}')
+        if query:
+            query = '?' + ('&'.join(query))
+        return self._get_objects(f'speeches/{id}{query}')
+
     def set_person(self, data):
         return self._set_object('people', data)
 
@@ -81,6 +89,9 @@ class ParladataApi(object):
 
     def set_membership(self, data):
         return self._set_object('person-memberships', data).json()
+
+    def set_org_membership(self, data):
+        return self._set_object('organization-memberships', data).json()
 
     def set_session(self, data):
         return self._set_object('sessions', data).json()
@@ -96,4 +107,7 @@ class ParladataApi(object):
 
     def set_vote(self, data):
         return self._set_object('votes', data).json()
+
+    def set_agenda_item(self, data):
+        return self._set_object('agenda-items', data).json()
 

@@ -45,6 +45,7 @@ class SessionsSpider(scrapy.Spider):
                 meta={'date': date, 'time': time})
 
     def parse_session(self, response):
+        order = 0
         session_name = response.css(".header-holder h1::text").extract_first()
         docx_files = response.css(".inner .attached-files .docx")
         for docx_file in docx_files:
@@ -63,6 +64,7 @@ class SessionsSpider(scrapy.Spider):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
             for link in li.css('.file-list-item a'):
                 if 'Glasovan' in link.css('::text').extract_first():
+                    order += 1
                     vote_link = link.css('::attr(href)').extract_first()
                     yield {
                         'type': 'vote',
@@ -70,6 +72,7 @@ class SessionsSpider(scrapy.Spider):
                         'session_name': session_name,
                         'agenda_name': agenda_name,
                         'date': response.meta["date"],
-                        'time': response.meta["time"]
+                        'time': response.meta["time"],
+                        'order': order
                     }
 

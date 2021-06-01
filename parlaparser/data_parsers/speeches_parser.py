@@ -28,13 +28,16 @@ class SpeechesParser(DocxParser):
             'start_time': start_time.isoformat()
         })
 
+        if session_id in self.data_storage.sessions_with_speeches:
+            logging.warning('Speeches of this session was already parsed')
+            return
+
         self.speeches = []
         current_person = None
         current_text = ''
         state = ParserState.HEADER
         order = 1
         for paragraph in self.document.paragraphs:
-            logging.debug(paragraph.text)
             text = paragraph.text
             if self.skip_line(text):
                 continue
@@ -73,7 +76,6 @@ class SpeechesParser(DocxParser):
                 continue
             elif state == ParserState.CONTENT and len(text.strip()) > 0:
                 current_text += ' ' + text.strip()
-        logging.debug(self.speeches)
         self.data_storage.add_speeches(self.speeches)
 
     def skip_line(self, text):
