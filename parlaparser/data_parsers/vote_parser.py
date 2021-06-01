@@ -33,6 +33,14 @@ class VoteParser(PdfParser):
         })
         self.session_id = session_id
 
+        agenda_item_id = self.data_storage.get_or_add_agenda_item({
+            'name': data['agenda_name'].strip(),
+            'datetime': start_time.isoformat(),
+            'session': session_id,
+            'order': data['order']
+        })
+        self.agenda_item_id = agenda_item_id
+
         state = ParserState.META
         start_time = None
 
@@ -48,7 +56,6 @@ class VoteParser(PdfParser):
         lines = ''.join(self.pdf).split('\n')
         ballots = []
         for line in lines:
-            logging.debug(line)
             if state == ParserState.META:
                 if line.startswith('DNE'):
                     date_str = line.split(" ")[2]   
@@ -63,8 +70,11 @@ class VoteParser(PdfParser):
                     # reset tilte and go to title mode
                     state = ParserState.TITLE
                     title = ''
+                elif line.strip().startswith('AMANDMA'):
+                    state = ParserState.TITLE
+                    title = f'{line.strip()}'
                 elif line.strip().startswith('SKUPAJ'):
-                    state = ParserState.RESULT
+                    state = ParserState.TITLE
                 else:
                     title = f'{title} {line.strip()}'
 
@@ -77,17 +87,21 @@ class VoteParser(PdfParser):
                         'text': title[:950],
                         'datetime': start_time.isoformat(),
                         'session': self.session_id,
+                        'agenda_items': [self.agenda_item_id]
                     }
+                    # TODO set needs_editing if needed
                     vote = {
                         'name': title[:950],
-                        'datetime': start_time.isoformat(),
+                        'timestamp': start_time.isoformat(),
                         'session': self.session_id,
+                        'needs_editing': False,
                     }
-                    if self.data_storage.check_if_vote_is_parsed(vote):
+                    if self.data_storage.check_if_motion_is_parsed(motion):
                         logging.info('vote is already parsed')
                         break
                 else:
                     title = f'{title} {line.strip()}'
+                    logging.warning(title)
             elif state == ParserState.RESULT:
                 if line.strip().startswith('SKUPAJ'):
                     # TODO find result
@@ -104,6 +118,9 @@ class VoteParser(PdfParser):
                     vote_obj = self.data_storage.set_vote(vote)
                     vote_id = int(vote_obj['id'])
 
+                    logging.warning(vote)
+                    logging.warning('......:::::::SAVE:::::......')
+
                     state = ParserState.CONTENT
                 else:
                     string_with_result = f'{string_with_result} {line.strip()}'
@@ -113,36 +130,32 @@ class VoteParser(PdfParser):
                     continue
                 if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA'):
                     state = ParserState.META
-                    logging.debug(f'...:::: Parsed was {ballots} votes :::...')
                     self.data_storage.set_ballots(ballots)
                     title = ''
                     ballots = []
                     continue
 
                 re_ballots = re.findall(find_vote, line)
-                logging.debug(f'...:::: {re_ballots} :::...')
                 for ballot in re_ballots:
-                    logging.warning(ballot)
                     person_name = ballot[1]
                     option = self.get_option(ballot[2])
                     person_id, added_person = self.data_storage.get_or_add_person(
                         person_name.strip()
                     )
-                    person_party = self.data_storage.get_membership_of_member_on_date(
-                        person_id,
-                        self.start_time,
-                        self.data_storage.main_org_id
-                    )
+                    # person_party = self.data_storage.get_membership_of_member_on_date(
+                    #     person_id,
+                    #     self.start_time,
+                    #     self.data_storage.main_org_id
+                    # )
                     ballots.append({
                         'personvoter': person_id,
-                        'orgvoter': person_party,
+                        #'orgvoter': person_party,
                         'option': option,
                         'session': self.session_id,
-                        'datetime': self.start_time.isoformat(),
+                        #'datetime': self.start_time.isoformat(),
                         'vote': vote_id
                     })
         if ballots:
-            logging.debug(f'...:::: Parsed was {len(ballots)} votes :::...')
             self.data_storage.set_ballots(ballots)
             ballots = []
             # TODO make new vote
