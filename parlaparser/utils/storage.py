@@ -118,8 +118,27 @@ class DataStorage(object):
                     return getattr(self, object_type)[parser_names]
         return None
 
-    def get_or_add_object_by_parsername(self, object_type, name, data_object, create_if_not_exist=True):
-        object_id = self.get_id_by_parsername(object_type, name)
+    def get_id_by_parsername_compare_rodilnik(self, object_type, name):
+        """
+        """
+        cutted_name = [word[:-2] for word in name.lower().split(' ')]
+        for parser_names in getattr(self, object_type).keys():
+            for parser_name in parser_names.split('|'):
+                cutted_parser_name = [word[:-2] for word in parser_name.lower().split(' ')]
+                if len(cutted_parser_name) != len(cutted_name):
+                    continue
+                result = []
+                for i, parted_parser_name in enumerate(cutted_parser_name):
+                    result.append( parted_parser_name in cutted_name[i] )
+                if result and all(result):
+                    return getattr(self, object_type)[parser_names]
+        return None
+
+    def get_or_add_object_by_parsername(self, object_type, name, data_object, create_if_not_exist=True, name_type='normal'):
+        if name_type == 'genitive':
+            object_id = self.get_id_by_parsername_compare_rodilnik(object_type, name)
+        else:
+            object_id = self.get_id_by_parsername(object_type, name)
         added = False
         if not object_id:
             if not create_if_not_exist:
@@ -135,13 +154,13 @@ class DataStorage(object):
                 return None
         return object_id, added
 
-    def get_or_add_person(self, name, data_object=None):
+    def get_or_add_person(self, name, data_object=None, name_type='normal'):
         if not data_object:
             data_object = {
                 'name': name.strip().title(),
                 'parser_names': name.strip()
             }
-        return self.get_or_add_object_by_parsername('people', name, data_object, True)
+        return self.get_or_add_object_by_parsername('people', name, data_object, True, name_type=name_type)
 
     def get_or_add_organization(self, name, data_object):
         return self.get_or_add_object_by_parsername('organizations', name, data_object, True)
@@ -192,6 +211,18 @@ class DataStorage(object):
     def set_vote(self, data):
         added_vote = self.parladata_api.set_vote(data)
         return added_vote
+
+    def set_question(self, data):
+        added_question = self.parladata_api.set_question(data)
+        return added_question
+
+    def set_link(self, data):
+        added_link = self.parladata_api.set_link(data)
+        return added_link
+
+    def set_legislation(self, data):
+        added_legislation = self.parladata_api.set_legislation(data)
+        return added_legislation
 
     def get_membership_of_member_on_date(self, person_id, search_date, core_organization):
         memberships = self.memberships[core_organization]

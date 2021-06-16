@@ -54,7 +54,7 @@ class VoteParser(PdfParser):
         vote = {}
 
         lines = ''.join(self.pdf).split('\n')
-        ballots = []
+        ballots = {}
         for line in lines:
             if state == ParserState.META:
                 if line.startswith('DNE'):
@@ -112,11 +112,45 @@ class VoteParser(PdfParser):
                     elif any(word in string_with_result for word in positive):
                         result = 'True'
                     motion['result'] = result
+
+                    if 'Akta' in data['agenda_name']:
+                        legislation_obj = self.data_storage.set_legislation({
+                            'text': motion['title'],
+                            'session': self.session_id,
+                            'datetime': self.start_time.isoformat(),
+                            'law_type': 'act',
+                            'passed': True if result == 'True' else False
+                        })
+                        motion['law'] = legislation_obj['id']
+                    elif 'Odloka' in data['agenda_name']:
+                        legislation_obj = self.data_storage.set_legislation({
+                            'text': motion['title'],
+                            'session': self.session_id,
+                            'datetime': self.start_time.isoformat(),
+                            'law_type': 'decree',
+                            'passed': True if result == 'True' else False
+                        })
+                        motion['law'] = legislation_obj['id']
+
                     motion_obj = self.data_storage.set_motion(motion)
                     vote['motion'] = motion_obj['id']
                     vote['result'] = result
                     vote_obj = self.data_storage.set_vote(vote)
                     vote_id = int(vote_obj['id'])
+                    for link in data['links']:
+                        # save links
+                        self.data_storage.set_link({
+                            'motion': motion_obj['id'],
+                            'url': link['url'],
+                            'title': link['title']
+                        })
+                        # save link for legislation
+                        if 'law' in motion.keys():
+                            self.data_storage.set_link({
+                                'law': motion['law'],
+                                'url': link['url'],
+                                'title': link['title']
+                            })
 
                     logging.warning(vote)
                     logging.warning('......:::::::SAVE:::::......')
@@ -130,12 +164,13 @@ class VoteParser(PdfParser):
                     continue
                 if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA'):
                     state = ParserState.META
-                    self.data_storage.set_ballots(ballots)
+                    self.data_storage.set_ballots(list(ballots.values()))
                     title = ''
-                    ballots = []
+                    ballots = {}
                     continue
 
                 re_ballots = re.findall(find_vote, line)
+                ballot_pairs = {}
                 for ballot in re_ballots:
                     person_name = ballot[1]
                     option = self.get_option(ballot[2])
@@ -147,18 +182,22 @@ class VoteParser(PdfParser):
                     #     self.start_time,
                     #     self.data_storage.main_org_id
                     # )
-                    ballots.append({
+
+                    # Work around for duplicated person ballots on the same vote
+                    if person_id in ballots.keys():
+                        if ballots[person_id]['option'] == 'absent':
+                            ballots[person_id]['option'] = option
+
+                    ballots[person_id] = {
                         'personvoter': person_id,
                         #'orgvoter': person_party,
                         'option': option,
                         'session': self.session_id,
-                        #'datetime': self.start_time.isoformat(),
                         'vote': vote_id
-                    })
+                    }
         if ballots:
-            self.data_storage.set_ballots(ballots)
-            ballots = []
-            # TODO make new vote
+            self.data_storage.set_ballots(list(ballots.values()))
+            ballots = {}
 
     def get_option(self, data):
         splited = re.split(r'\s+', data)

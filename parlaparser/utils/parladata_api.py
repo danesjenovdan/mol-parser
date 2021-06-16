@@ -105,8 +105,17 @@ class ParladataApi(object):
     def set_motion(self, data):
         return self._set_object('motions', data).json()
 
+    def set_question(self, data):
+        return self._set_object('questions', data).json()
+
+    def set_link(self, data):
+        return self._set_object('links', data).json()
+
     def set_vote(self, data):
         return self._set_object('votes', data).json()
+
+    def set_legislation(self, data):
+        return self._set_object('legislation', data).json()
 
     def set_agenda_item(self, data):
         return self._set_object('agenda-items', data).json()
