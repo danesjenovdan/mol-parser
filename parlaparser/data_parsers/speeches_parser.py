@@ -1,8 +1,10 @@
 from parlaparser.data_parsers.base_parser import DocxParser
 from parlaparser import settings
-import logging
 from enum import Enum
 from datetime import timedelta
+
+import logging
+import re
 
 class ParserState(Enum):
     HEADER = 1
@@ -14,6 +16,9 @@ class SpeechesParser(DocxParser):
     def __init__(self, data, data_storage):
         super().__init__(data_storage, data['docx_url'], 'temp_file.docx')
         logging.debug(data['session_name'])
+
+        for_text = r'\d+ ZA\.?'
+        against_text = r'\d+ PROTI\.?'
 
         start_time = data['date']
         start_time = start_time + timedelta(
@@ -59,11 +64,18 @@ class SpeechesParser(DocxParser):
                         start_time,
                         self.data_storage.main_org_id
                     )
+                    results = re.findall(for_text, current_text) + re.findall(against_text, current_text)
+                    if len(results) > 0:
+                        tags = ['vote']
+                    else:
+                        tags = []
+                    logging.debug(tags)
                     self.speeches.append({
                         'speaker': person_id,
                         'content': current_text,
                         'session': session_id,
                         'order': order,
+                        'tags': tags,
                         'party': person_party,
                         'start_time': start_time.isoformat()
                     })
