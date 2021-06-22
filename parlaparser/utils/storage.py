@@ -220,6 +220,12 @@ class DataStorage(object):
         added_link = self.parladata_api.set_link(data)
         return added_link
 
+    def patch_motion(self, id, data):
+        self.parladata_api.patch_motion(id, data)
+
+    def patch_vote(self, id, data):
+        self.parladata_api.patch_vote(id, data)
+
     def set_legislation(self, data):
         added_legislation = self.parladata_api.set_legislation(data)
         return added_legislation
