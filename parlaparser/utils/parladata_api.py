@@ -43,6 +43,16 @@ class ParladataApi(object):
             logging.warning(response.content)
         return response
 
+    def _patch_object(self, endpoint, data):
+        response = requests.patch(
+                f'{self.base_url}/{endpoint}/',
+                json=data,
+                auth=self.auth
+            )
+        if response.status_code > 299:
+            logging.warning(response.content)
+        return response
+
     def set_object(self, endpoint, data):
         return self._set_object(endpoint, data)
 
@@ -105,6 +115,9 @@ class ParladataApi(object):
     def set_motion(self, data):
         return self._set_object('motions', data).json()
 
+    def patch_motion(self, id, data):
+        return self._patch_object(f'motions/{id}', data).json()
+
     def set_question(self, data):
         return self._set_object('questions', data).json()
 
@@ -113,6 +126,9 @@ class ParladataApi(object):
 
     def set_vote(self, data):
         return self._set_object('votes', data).json()
+
+    def patch_vote(self, id, data):
+        return self._set_object(f'votes/{id}', data).json()
 
     def set_legislation(self, data):
         return self._set_object('legislation', data).json()

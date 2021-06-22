@@ -1,6 +1,7 @@
 from parlaparser.data_parsers.base_parser import PdfParser
 from parlaparser import settings
 from enum import Enum
+from collections import Counter
 from datetime import datetime, timedelta
 import logging
 import re
@@ -105,12 +106,7 @@ class VoteParser(PdfParser):
             elif state == ParserState.RESULT:
                 if line.strip().startswith('SKUPAJ'):
                     # TODO find result
-                    positive = ['sprejme', 'seznani']
-                    negative = ['zavrne']
-                    if any(word in string_with_result for word in negative):
-                        result = 'False'
-                    elif any(word in string_with_result for word in positive):
-                        result = 'True'
+                    result = True
                     motion['result'] = result
 
                     if 'Akta' in data['agenda_name']:
@@ -137,10 +133,11 @@ class VoteParser(PdfParser):
                     vote['result'] = result
                     vote_obj = self.data_storage.set_vote(vote)
                     vote_id = int(vote_obj['id'])
+                    motion_id = motion_obj['id']
                     for link in data['links']:
                         # save links
                         self.data_storage.set_link({
-                            'motion': motion_obj['id'],
+                            'motion': motion_id,
                             'url': link['url'],
                             'title': link['title']
                         })
@@ -164,6 +161,9 @@ class VoteParser(PdfParser):
                     continue
                 if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA'):
                     state = ParserState.META
+
+                    self.patch_result(ballots, vote_id, motion_id)
+
                     self.data_storage.set_ballots(list(ballots.values()))
                     title = ''
                     ballots = {}
@@ -196,8 +196,16 @@ class VoteParser(PdfParser):
                         'vote': vote_id
                     }
         if ballots:
+            self.patch_result(ballots, vote_id, motion_id)
             self.data_storage.set_ballots(list(ballots.values()))
             ballots = {}
+
+    def patch_result(self, ballots, vote_id, motion_id):
+        options = Counter([ballot['option'] for ballot in ballots.values()])
+        result = options.get('for', 0) > options.get('against', 0)
+
+        self.data_storage.patch_motion(motion_id, {'result': result})
+        self.data_storage.patch_vote(vote_id, {'result': result})
 
     def get_option(self, data):
         splited = re.split(r'\s+', data)
