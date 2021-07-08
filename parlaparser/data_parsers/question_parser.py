@@ -58,6 +58,8 @@ class QuestionParser(BaseParser):
             'timestamp': self.start_time.isoformat(),
             'type_of_question': question_type
         }
+        if self.data_storage.check_if_question_is_parsed(question_data):
+            return
         question_data.update(author)
 
         question = self.data_storage.set_question(question_data)

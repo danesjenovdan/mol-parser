@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 # Scrapy settings for parlaparser project
 #
 # For simplicity, this file contains only settings considered important or
@@ -88,9 +89,10 @@ ROBOTSTXT_OBEY = True
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
-API_AUTH = ('parlauser', 'password')
-API_URL = 'http://localhost:8000/v3'
+API_AUTH = (os.getenv('PARSER_USER', 'parlauser'), os.getenv('PARSER_PASSWORD', 'parsernedela123'))
+API_URL = os.getenv('PARSER_PARLADATA_API_URL', 'http://localhost:8000/v3')
+BASE_URL = 'https://www.ljubljana.si'
 
-MANDATE_STARTIME = datetime(day=15, month=12, year=2018)
-MAIN_ORG_ID = 1
-MANDATE = 1
+MANDATE_STARTIME = datetime.strptime(os.getenv('PARSER_MANDATE_START_DATE', '2018-12-15'), '%Y-%m-%d')
+MAIN_ORG_ID = os.getenv('PARSER_MAIN_ORG_ID', '23')
+MANDATE = os.getenv('PARSER_MANDATE_ID', '1')

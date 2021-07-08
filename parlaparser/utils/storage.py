@@ -70,9 +70,9 @@ class DataStorage(object):
             self.agenda_items[self.get_agenda_key(item)] = item['id']
         logging.warning(f'loaded {len(self.agenda_items)} agenda_items')
 
-        # for question in self.parladata_api.get_questions():
-        #     self.questions[question['signature']] = {'id': question['id'], 'answer': question['date_of_answer']}
-        # logging.warning(f'loaded {len(self.questions)} questions')
+        for question in self.parladata_api.get_questions():
+            self.questions[self.get_question_key(question)] = {'id': question['id'], 'answer': question['answer_timestamp']}
+        logging.warning(f'loaded {len(self.questions)} questions')
 
         # for legislation in self.parladata_api.get_legislation():
         #     if legislation['classification'] == 'act':
@@ -103,7 +103,10 @@ class DataStorage(object):
         return (vote['name']).strip().lower()
 
     def get_motion_key(self, motion):
-        return (motion['title'] + motion['datetime']).strip().lower()
+        return (str(motion['session']) + motion['datetime']).strip().lower()
+
+    def get_question_key(self, question):
+        return (question['title'] + question['timestamp']).strip().lower()
 
     def get_agenda_key(self, agenda_item):
         return (agenda_item['name'] + '_' + agenda_item['datetime']).strip().lower()
@@ -206,7 +209,11 @@ class DataStorage(object):
 
     def check_if_motion_is_parsed(self, vote):
         key = self.get_motion_key(vote)
-        return key in self.votes.keys()
+        return key in self.motions.keys()
+
+    def check_if_question_is_parsed(self, question):
+        key = self.get_question_key(question)
+        return key in self.questions.keys()
 
     def set_vote(self, data):
         added_vote = self.parladata_api.set_vote(data)

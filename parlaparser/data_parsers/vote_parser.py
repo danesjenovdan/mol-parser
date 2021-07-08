@@ -109,6 +109,10 @@ class VoteParser(PdfParser):
                     result = True
                     motion['result'] = result
 
+                    if self.data_storage.check_if_motion_is_parsed(motion):
+                        logging.info('vote is already parsed')
+                        break
+
                     if 'Akta' in data['agenda_name']:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': motion['title'],

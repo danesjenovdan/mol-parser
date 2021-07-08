@@ -128,7 +128,7 @@ class ParladataApi(object):
         return self._set_object('votes', data).json()
 
     def patch_vote(self, id, data):
-        return self._set_object(f'votes/{id}', data).json()
+        return self._patch_object(f'votes/{id}', data).json()
 
     def set_legislation(self, data):
         return self._set_object('legislation', data).json()
