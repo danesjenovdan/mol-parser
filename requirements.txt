@@ -3,3 +3,4 @@ ipython
 Scrapy
 pdftotext
 python-docx
+requests
