@@ -1,4 +1,4 @@
-FROM rg.fr-par.scw.cloud/djnd/parladata:47860eb2a691c15e394da58ee9a6e2a38d000997
+FROM rg.fr-par.scw.cloud/djnd/parladata:latest
 
 RUN apt-get update && \
     apt-get upgrade -y

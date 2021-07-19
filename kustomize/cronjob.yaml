@@ -8,6 +8,7 @@ spec:
   failedJobsHistoryLimit: 2
   jobTemplate:
     spec:
+      backoffLimit: 1
       template:
         spec:
           containers:
@@ -27,4 +28,11 @@ spec:
                   name: parladata-credentials
               - secretRef:
                   name: parlaparser-ljubljana-credentials
+            resources:
+              requests:
+                memory: 1Gi # OOMKilled
+                cpu: 300m
+              limits:
+                memory: 1Gi # OOMKilled
+                cpu: 300m
           restartPolicy: Never

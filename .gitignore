@@ -130,3 +130,6 @@ dmypy.json
 
 # k8s
 secrets.yaml
+
+# download files
+parlaparser/files/*
