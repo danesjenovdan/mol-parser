@@ -132,4 +132,3 @@ dmypy.json
 secrets.yaml
 
 # download files
-parlaparser/files/*
