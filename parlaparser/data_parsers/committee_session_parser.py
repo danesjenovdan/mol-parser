@@ -45,7 +45,7 @@ class CommitteeSessionParser(BaseParser):
             'name': data['session_name'].strip(),
             'organization': working_body_id,
             'organizations': [working_body_id],
-            'start_time': start_time.isoformat()
+            'start_time': start_time.isoformat(),
         })
 
         if added:
