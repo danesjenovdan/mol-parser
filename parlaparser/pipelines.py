@@ -13,6 +13,7 @@ from parlaparser.data_parsers.speeches_parser import SpeechesParser
 from parlaparser.data_parsers.vote_parser import VoteParser
 from parlaparser.data_parsers.question_parser import QuestionParser
 from parlaparser.data_parsers.committee_parser import CommitteeParser
+from parlaparser.data_parsers.committee_session_parser import CommitteeSessionParser
 
 import logging
 
@@ -34,4 +35,6 @@ class ParlaparserPipeline:
             QuestionParser(item, self.data_storage)
         elif item['type'] == 'memberships':
             CommitteeParser(item, self.data_storage)
+        elif item['type'] == 'agenda-items':
+            CommitteeSessionParser(item, self.data_storage)
         return item
