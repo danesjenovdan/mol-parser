@@ -54,7 +54,7 @@ class DataStorage(object):
         logging.warning(f'loaded {len(self.votes)} votes')
 
         for session in self.parladata_api.get_sessions():
-            self.sessions[f'{session["name"]}_{"_".join(list(map(str, session["organizations"])))}'] = session['id']
+            self.sessions[self.get_session_key(session)] = session['id']
         logging.warning(f'loaded {len(self.sessions)} sessions')
 
         for session in self.sessions.values():
@@ -90,12 +90,12 @@ class DataStorage(object):
         # logging.warning(f'loaded {len(self.acts)} acts')
         # logging.warning(f'loaded {len(self.legislation)} legislation')
 
-    
-        logging.debug(self.people.keys())
 
         for membership in self.parladata_api.get_memberships():
             self.memberships[membership['organization']][membership['member']].append(membership)
 
+    def get_session_key(self, session):
+        return f'{session["name"]}_{"_".join(list(map(str, session["organizations"])))}'
 
     def get_vote_key(self, vote):
         if vote['name'] == None:
@@ -109,7 +109,7 @@ class DataStorage(object):
         return (question['title'] + question['timestamp']).strip().lower()
 
     def get_agenda_key(self, agenda_item):
-        return (agenda_item['name'] + '_' + agenda_item['datetime']).strip().lower()
+        return (agenda_item['name'].strip() + '_' + str(agenda_item['session'])).strip().lower()
 
     def get_id_by_parsername(self, object_type, name):
         """
@@ -179,14 +179,14 @@ class DataStorage(object):
         return membership
 
     def add_or_get_session(self, data):
-        key = f'{data["name"]}_{self.main_org_id}'
+        key = self.get_session_key(data)
         if key in self.sessions:
-            return self.sessions[key]
+            return self.sessions[key], False
         else:
             data.update(mandate=self.mandate_id)
             session_data = self.parladata_api.set_session(data)
             self.sessions[key] = session_data['id']
-            return session_data['id']
+            return session_data['id'], True
 
     def add_speeches(self, data):
         self.parladata_api.set_speeches(data)
@@ -199,8 +199,6 @@ class DataStorage(object):
         return added_motion
 
     def get_or_add_agenda_item(self, data):
-        logging.warning(self.get_agenda_key(data))
-        logging.warning(self.agenda_items.keys())
         if self.get_agenda_key(data) in self.agenda_items.keys():
             return self.agenda_items[self.get_agenda_key(data)]
         else:

@@ -26,7 +26,7 @@ class SpeechesParser(DocxParser):
             minutes=int(data['time'].split(':')[1]))
 
 
-        session_id = self.data_storage.add_or_get_session({
+        session_id, added = self.data_storage.add_or_get_session({
             'name': data['session_name'],
             'organization': self.data_storage.main_org_id,
             'organizations': [self.data_storage.main_org_id],

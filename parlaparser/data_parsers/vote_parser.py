@@ -27,7 +27,7 @@ class VoteParser(PdfParser):
         self.start_time = start_time
 
 
-        session_id = self.data_storage.add_or_get_session({
+        session_id, added = self.data_storage.add_or_get_session({
             'name': data['session_name'],
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat()
