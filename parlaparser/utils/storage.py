@@ -183,7 +183,15 @@ class DataStorage(object):
         if key in self.sessions:
             return self.sessions[key], False
         else:
-            data.update(mandate=self.mandate_id)
+            classification = 'regular'
+            if 'koresponden' in data['name'].lower():
+                classification = 'correspondent'
+            elif 'izredna' in data['name'].lower():
+                classification = 'irregular'
+            data.update({
+                'mandate':self.mandate_id,
+                'classification': classification
+            })
             session_data = self.parladata_api.set_session(data)
             self.sessions[key] = session_data['id']
             return session_data['id'], True
