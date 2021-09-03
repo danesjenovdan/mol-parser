@@ -75,6 +75,9 @@ class QuestionParser(BaseParser):
 
     def find_name(self, mixed_text):
         person_name = None
+        if 'v pisnega' in mixed_text:
+            start = mixed_text.index("v pisnega")
+            mixed_text = mixed_text[:start].strip()
         if 'svetnika' in mixed_text.lower():
             person_name = mixed_text.split('svetnika')[1].strip()
 

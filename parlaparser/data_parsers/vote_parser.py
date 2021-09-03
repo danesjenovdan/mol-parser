@@ -13,6 +13,8 @@ class ParserState(Enum):
     CONTENT = 4
     VOTE = 5
     PRE_TITLE = 6
+    REMOTE_VOTING_META = 7
+    REMOTE_VOTING = 8
 
 class VoteParser(PdfParser):
     def __init__(self, data, data_storage):
@@ -25,6 +27,8 @@ class VoteParser(PdfParser):
             minutes=int(data['time'].split(':')[1]))
 
         self.start_time = start_time
+
+        all_votes_ids = []
 
 
         session_id, added = self.data_storage.add_or_get_session({
@@ -46,6 +50,7 @@ class VoteParser(PdfParser):
         start_time = None
 
         find_vote = r'([0-9]{3})\s*(.*?)\s*(\.[N|.]\s+\.[Z|P|\.])'
+        find_paging = r'([0-9]+\/[0-9]+)'
 
         vote_id = None
         result = None
@@ -82,17 +87,16 @@ class VoteParser(PdfParser):
             elif state == ParserState.TITLE:
                 if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ'):
                     state = ParserState.RESULT
-                    # TODO remove title limit
                     motion = {
-                        'title': title[:950],
-                        'text': title[:950],
+                        'title': title,
+                        'text': title,
                         'datetime': start_time.isoformat(),
                         'session': self.session_id,
                         'agenda_items': [self.agenda_item_id]
                     }
                     # TODO set needs_editing if needed
                     vote = {
-                        'name': title[:950],
+                        'name': title,
                         'timestamp': start_time.isoformat(),
                         'session': self.session_id,
                         'needs_editing': False,
@@ -137,6 +141,7 @@ class VoteParser(PdfParser):
                     vote['result'] = result
                     vote_obj = self.data_storage.set_vote(vote)
                     vote_id = int(vote_obj['id'])
+                    all_votes_ids.append(vote_id)
                     motion_id = motion_obj['id']
                     for link in data['links']:
                         # save links
@@ -163,7 +168,11 @@ class VoteParser(PdfParser):
             elif state == ParserState.CONTENT:
                 if line.strip().startswith('SKUPAJ'):
                     continue
+                if line.strip().startswith('GLASOVANJE NA DALJAVO'):
+                    state = ParserState.REMOTE_VOTING_META
+                    continue
                 if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA'):
+                    # Save ballots and set parser state to META
                     state = ParserState.META
 
                     self.patch_result(ballots, vote_id, motion_id)
@@ -199,6 +208,57 @@ class VoteParser(PdfParser):
                         'session': self.session_id,
                         'vote': vote_id
                     }
+            elif state == ParserState.REMOTE_VOTING_META:
+                if line.strip().startswith('Individualni odgovori:'):
+                    state = ParserState.REMOTE_VOTING
+                    continue
+            elif state == ParserState.REMOTE_VOTING:
+                if not line.strip():
+                    continue
+                if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA') or re.findall(find_paging, line):
+                    state = ParserState.META
+
+                    self.patch_result(ballots, vote_id, motion_id)
+
+                    self.data_storage.set_ballots(list(ballots.values()))
+                    title = ''
+                    ballots = {}
+                    continue
+
+                logging.warning('SPLIT')
+                logging.warning(line)
+                person_name, option = line.split(':')
+
+                person_id, added_person = self.data_storage.get_or_add_person(
+                    person_name.strip()
+                )
+                remote_options = {
+                    'NI GLASOVAL/A': 'abstain',
+                    'DA': 'for',
+                    'ZA': 'for',
+                    'NE': 'against',
+                    'PROTI': 'against',
+                }
+                try:
+                    option = remote_options[option.strip()]
+                except:
+                    logging.warning('....:::::UNPREDICTED OPTION:::::......')
+                    logging.warning(line)
+                    state = ParserState.META
+                    self.data_storage.set_ballots(list(ballots.values()))
+                    # set vote as needs editing
+                    for vote in all_votes_ids:
+                        self.data_storage.patch_vote(vote, {'needs_editing': True})
+                    break
+
+                ballots[person_id] = {
+                    'personvoter': person_id,
+                    #'orgvoter': person_party,
+                    'option': option,
+                    'session': self.session_id,
+                    'vote': vote_id
+                }
+
         if ballots:
             self.patch_result(ballots, vote_id, motion_id)
             self.data_storage.set_ballots(list(ballots.values()))
