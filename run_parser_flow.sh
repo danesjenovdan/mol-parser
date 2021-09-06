@@ -1,6 +1,8 @@
 #!/bin/bash
 echo "parse speeches, votes, questions"
 scrapy crawl sessions
+echo "parse committee sessions"
+scrapy crawl committee_sessions
 cd /app
 echo "start setting votes results"
 python manage.py set_votes_result --majority relative_normal
