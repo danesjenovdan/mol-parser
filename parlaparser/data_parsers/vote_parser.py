@@ -36,15 +36,35 @@ class VoteParser(PdfParser):
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat()
         })
+        if added and 'session_notes' in data.keys():
+            # add notes
+            link_data = {
+                'session': session_id,
+                'url': data['session_notes']['url'],
+                'name': data['session_notes']['title'],
+            }
+            self.data_storage.set_link(link_data)
+
         self.session_id = session_id
 
-        agenda_item_id = self.data_storage.get_or_add_agenda_item({
+        agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
             'name': data['agenda_name'].strip(),
             'datetime': start_time.isoformat(),
             'session': session_id,
             'order': data['order']
         })
         self.agenda_item_id = agenda_item_id
+        if added:
+            for link in data['links']:
+                # save links
+                link_data = {
+                    'agenda_item': self.agenda_item_id,
+                    'url': link['url'],
+                    'name': link['title'],
+                    'tags': [link['tag']]
+                }
+                self.data_storage.set_link(link_data)
+        
 
         state = ParserState.META
         start_time = None
@@ -117,7 +137,10 @@ class VoteParser(PdfParser):
                         logging.info('vote is already parsed')
                         break
 
-                    if 'Akta' in data['agenda_name']:
+                    if 'amandma' in motion['title'].lower():
+                        # skip saving legislation if is an amdandma
+                        pass
+                    elif 'Akta' in data['agenda_name']:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': motion['title'],
                             'session': self.session_id,
@@ -145,18 +168,17 @@ class VoteParser(PdfParser):
                     motion_id = motion_obj['id']
                     for link in data['links']:
                         # save links
-                        self.data_storage.set_link({
+                        link_data = {
                             'motion': motion_id,
+                            #'agenda_item': self.agenda_item_id,
                             'url': link['url'],
-                            'title': link['title']
-                        })
-                        # save link for legislation
+                            'name': link['title'],
+                            'tags': [link['tag']]
+                        }
                         if 'law' in motion.keys():
-                            self.data_storage.set_link({
-                                'law': motion['law'],
-                                'url': link['url'],
-                                'title': link['title']
-                            })
+                            link_data.update({'law': motion['law']})
+                        self.data_storage.set_link(link_data)
+ 
 
                     logging.warning(vote)
                     logging.warning('......:::::::SAVE:::::......')
@@ -282,5 +304,3 @@ class VoteParser(PdfParser):
             return 'abstain'
         else:
             return 'absent'
-
-

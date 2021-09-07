@@ -51,6 +51,15 @@ class SessionsSpider(scrapy.Spider):
         order = 0
         words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
         session_name = response.css(".header-holder h1::text").extract_first()
+        session_notes = {}
+
+        for doc in response.css('ul.attached-files')[-1].css('a'):
+            if 'Zapisnik' in doc.css('::text').extract_first():
+                session_notes = {
+                    'url': f'{self.base_url}{doc.css("::attr(href)").extract_first()}',
+                    'title': doc.css('::text').extract_first()
+                }
+
         if self.parse_type in ['speeches', None]:
             docx_files = response.css(".inner .attached-files .docx")
             for docx_file in docx_files:
@@ -62,11 +71,13 @@ class SessionsSpider(scrapy.Spider):
                         'docx_url': f'{self.base_url}{speeches_file_url}',
                         'session_name': session_name,
                         'date': response.meta["date"],
-                        'time': response.meta["time"]
+                        'time': response.meta["time"],
+                        'session_notes': session_notes
                     }
 
         for li in response.css(".list-agenda>li"):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
+            notes = {}
             if self.parse_type in ['questions', None]:
                 if agenda_name and agenda_name.strip() == 'Vprašanja in pobude svetnikov ter odgovori na vprašanja in pobude':
                     for link in li.css('.file-list-item a'):
@@ -80,41 +91,46 @@ class SessionsSpider(scrapy.Spider):
                             'agenda_name': agenda_name,
                             'date': response.meta["date"],
                             'time': response.meta["time"],
-                            'url': url
+                            'url': url,
+                            'session_notes': session_notes
                         }
             if self.parse_type in ['votes', None]:
                 votes = {}
                 links = []
-                for link in li.css('.file-list-item a'):
-                    link_text = link.css('::text').extract_first()
-                    link_url = link.css('::attr(href)').extract_first()
-                    enums = re.findall(find_enumerating, link_text)
-                    range_enums = re.findall(find_range_enumerating, link_text)
-                    if range_enums:
-                        enums = words_orders[words_orders.index(range_enums[0][0]):words_orders.index(range_enums[0][1])+1]
-                    if 'Glasovan' in link_text:
-                        order += 1
-                        vote_link = link.css('::attr(href)').extract_first()
-                        if enums:
-                            enum = enums[0]
-                        else:
-                            enum = 0
+                for list_item in li.css('.file-list-item'):
+                    group = list_item.css('h4::text').extract_first()
+                    for link in list_item.css('a'):
+                        link_text = ' '.join(link.css('::text').extract()).strip()
+                        link_url = link.css('::attr(href)').extract_first()
+                        enums = re.findall(find_enumerating, link_text)
+                        range_enums = re.findall(find_range_enumerating, link_text)
+                        if range_enums:
+                            enums = words_orders[words_orders.index(range_enums[0][0]):words_orders.index(range_enums[0][1])+1]
+                        if 'Glasovan' in link_text:
+                            order += 1
+                            vote_link = link.css('::attr(href)').extract_first()
+                            if enums:
+                                enum = enums[0]
+                            else:
+                                enum = 0
 
-                        votes[enum] = {
-                            'type': 'vote',
-                            'pdf_url': f'{self.base_url}{link_url}',
-                            'session_name': session_name,
-                            'agenda_name': agenda_name,
-                            'date': response.meta["date"],
-                            'time': response.meta["time"],
-                            'order': order
-                        }
-                    else:
-                        links.append({
-                            'title': link_text,
-                            'url': f'{self.base_url}{link_url}',
-                            'enums': enums
-                        })
+                            votes[enum] = {
+                                'type': 'vote',
+                                'pdf_url': f'{self.base_url}{link_url}',
+                                'session_name': session_name,
+                                'agenda_name': agenda_name,
+                                'date': response.meta["date"],
+                                'time': response.meta["time"],
+                                'order': order,
+                                'session_notes': session_notes
+                            }
+                        else:
+                            links.append({
+                                'tag': group,
+                                'title': link_text,
+                                'url': f'{self.base_url}{link_url}',
+                                'enums': enums
+                            })
                 for key, vote in votes.items():
                     if key == 0:
                         tmp_links = links
@@ -124,4 +140,3 @@ class SessionsSpider(scrapy.Spider):
                         'links': tmp_links
                     })
                     yield vote
-

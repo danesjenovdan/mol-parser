@@ -32,6 +32,14 @@ class SpeechesParser(DocxParser):
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat()
         })
+        if added and 'session_notes' in data.keys():
+            # add notes
+            link_data = {
+                'session': session_id,
+                'url': data['session_notes']['url'],
+                'name': data['session_notes']['title'],
+            }
+            self.data_storage.set_link(link_data)
 
         if session_id in self.data_storage.sessions_with_speeches:
             logging.warning('Speeches of this session was already parsed')
@@ -96,5 +104,3 @@ class SpeechesParser(DocxParser):
         elif text.startswith('... ///'):
             return True
         return False
-
-

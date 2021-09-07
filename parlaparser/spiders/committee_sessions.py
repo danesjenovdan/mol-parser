@@ -115,8 +115,8 @@ class CommitteeSessionsSpider(scrapy.Spider):
             links = []
             for link in li.css('.file-list-item a'):
                 links.append({
-                    'text': link.css('::text').extract_first(),
-                    'url': link.css('::attr(href)').extract_first()
+                    'title': link.css('::text').extract_first(),
+                    'url': self.base_url + link.css('::attr(href)').extract_first()
                 })
 
             if agenda_name_special:
