@@ -24,6 +24,15 @@ class QuestionParser(BaseParser):
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat()
         })
+        if added and 'session_notes' in data.keys():
+            # add notes
+            link_data = {
+                'session': session_id,
+                'url': data['session_notes']['url'],
+                'name': data['session_notes']['title'],
+            }
+            self.data_storage.set_link(link_data)
+
         self.session_id = session_id
 
         url = data['url']
@@ -69,7 +78,7 @@ class QuestionParser(BaseParser):
         self.data_storage.set_link({
             'question': question_id,
             'url': f'{settings.BASE_URL}{url}',
-            'title': f'{question_type}: {question_text}'
+            'name': f'{question_type}: {question_text}'
         })
 
 

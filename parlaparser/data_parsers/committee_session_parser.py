@@ -53,13 +53,25 @@ class CommitteeSessionParser(BaseParser):
                 self.data_storage.set_link({
                 'session': session_id,
                 'url': f'{settings.BASE_URL}{note["url"]}',
-                'title': f'{note["text"]}'
+                'name': f'{note["text"]}'
             })
 
-        session_id = self.data_storage.get_or_add_agenda_item({
+        agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
             'order': data['order'],
             'name': data['agenda_name'],
             'datetime': start_time.isoformat(),
             'session': session_id,
             'text': data['agenda_name'],
         })
+        if added:
+            for link in data['links']:
+                # save links
+                link_data = {
+                    'agenda_item': agenda_item_id,
+                    'url': link['url'],
+                    'name': link['title'],
+                }
+                tag = link.get('tag', None)
+                if tag:
+                    link_data.append({'tag': [tag]})
+                self.data_storage.set_link(link_data)
