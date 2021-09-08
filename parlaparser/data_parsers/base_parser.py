@@ -17,7 +17,7 @@ class PdfParser(BaseParser):
             f.write(response.content)
 
         with open(f'parlaparser/files/{file_name}', "rb") as f:
-            self.pdf = pdftotext.PDF(f)
+            self.pdf = pdftotext.PDF(f, physical=True)
 
 
 class DocxParser(BaseParser):
