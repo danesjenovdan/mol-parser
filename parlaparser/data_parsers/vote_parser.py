@@ -146,7 +146,6 @@ class VoteParser(PdfParser):
                             'session': self.session_id,
                             'datetime': self.start_time.isoformat(),
                             'law_type': 'act',
-                            'passed': True if result == 'True' else False
                         })
                         motion['law'] = legislation_obj['id']
                     elif 'Odloka' in data['agenda_name']:
@@ -155,7 +154,6 @@ class VoteParser(PdfParser):
                             'session': self.session_id,
                             'datetime': self.start_time.isoformat(),
                             'law_type': 'decree',
-                            'passed': True if result == 'True' else False
                         })
                         motion['law'] = legislation_obj['id']
 
