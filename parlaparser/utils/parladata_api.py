@@ -92,6 +92,17 @@ class ParladataApi(object):
         return self._get_objects(f'speeches/{id}{query}')
 
     def set_person(self, data):
+        name = data.get('name', '')
+        name, prefix = self.parse_name_prefix(name)
+        if prefix:
+            parser_names = data.pop('parser_names', '')
+            parser_names += f'|{name}'
+            data.update({
+                'honorific_prefix': prefix,
+                'parser_names': parser_names,
+                'name': name,
+            })
+        logging.warning(data)
         return self._set_object('people', data)
 
     def set_organization(self, data):
@@ -136,3 +147,19 @@ class ParladataApi(object):
     def set_agenda_item(self, data):
         return self._set_object('agenda-items', data).json()
 
+    def parse_name_prefix(self, name):
+        prefixes = [
+            'dr',
+            'mag',
+            'prof'
+        ]
+
+        tokenized_name = name.split(' ')
+        first_word = tokenized_name[0].replace('.', '').lower()
+        
+        prefix = None
+        if first_word in prefixes:
+            name = ' '.join(tokenized_name[1:])
+            prefix = first_word
+
+        return name, prefix

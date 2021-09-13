@@ -146,7 +146,10 @@ class DataStorage(object):
         if not object_id:
             if not create_if_not_exist:
                 return None
-            response = self.parladata_api.set_object(object_type, data_object)
+            if object_type == 'people':
+                response = self.parladata_api.set_person(data_object)
+            else:
+                response = self.parladata_api.set_object(object_type, data_object)
             try:
                 response_data = response.json()
                 object_id = response_data['id']
