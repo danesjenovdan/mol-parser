@@ -19,7 +19,8 @@ class PersonParser(BaseParser):
             data_storage.add_org_membership(
                 {
                     'member': organization_id,
-                    'organization': data_storage.main_org_id
+                    'organization': data_storage.main_org_id,
+                    'mandate': data_storage.mandate_id
                 }
             )
 
@@ -37,7 +38,8 @@ class PersonParser(BaseParser):
                     'organization': organization_id,
                     'on_behalf_of': None,
                     'start_time': data_storage.mandate_start_time.isoformat(),
-                    'role': data['role'] if data['role'] else 'member'
+                    'role': data['role'] if data['role'] else 'member',
+                    'mandate': data_storage.mandate_id
                 }
             )
             data_storage.add_membership(
@@ -46,6 +48,7 @@ class PersonParser(BaseParser):
                     'organization': data_storage.main_org_id,
                     'on_behalf_of': organization_id,
                     'start_time': data_storage.mandate_start_time.isoformat(),
-                    'role': 'voter'
+                    'role': 'voter',
+                    'mandate': data_storage.mandate_id
                 }
             )

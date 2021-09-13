@@ -30,7 +30,8 @@ class CommitteeParser(BaseParser):
                 'organization': organization_id,
                 'on_behalf_of': None,
                 'start_time': data_storage.mandate_start_time.isoformat(),
-                'role': data['role'] if data['role'] else 'member'
+                'role': data['role'] if data['role'] else 'member',
+                'mandate': data_storage.mandate_id
             }
         )
 
