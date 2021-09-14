@@ -144,7 +144,7 @@ class VoteParser(PdfParser):
                         legislation_obj = self.data_storage.set_legislation({
                             'text': motion['title'],
                             'session': self.session_id,
-                            'datetime': self.start_time.isoformat(),
+                            'timestamp': self.start_time.isoformat(),
                             'law_type': 'act',
                         })
                         motion['law'] = legislation_obj['id']
