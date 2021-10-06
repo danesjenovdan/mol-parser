@@ -121,7 +121,7 @@ class SessionsSpider(scrapy.Spider):
                             # if agenda item is enumerated, then try to find correct name
                             if link_text[1] == ')':
                                 for temp_agenda_name in agenda_names:
-                                    if temp_agenda_name[0] == link_text[0]:
+                                    if temp_agenda_name and temp_agenda_name[0] == link_text[0]:
                                         agenda_name = temp_agenda_name
 
                             votes[enum] = {
