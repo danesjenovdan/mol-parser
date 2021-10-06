@@ -77,6 +77,10 @@ class SessionsSpider(scrapy.Spider):
 
         for li in response.css(".list-agenda>li"):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
+            # get agenda_names: is using for a) b) c)....
+            agenda_names = li.css('.file-list-header h3.file-list-open-h3::text').extract()
+            agenda_names = list(map(str.strip, agenda_names))
+
             notes = {}
             if self.parse_type in ['questions', None]:
                 if agenda_name and agenda_name.strip() == 'Vprašanja in pobude svetnikov ter odgovori na vprašanja in pobude':
@@ -113,6 +117,12 @@ class SessionsSpider(scrapy.Spider):
                                 enum = enums[0]
                             else:
                                 enum = 0
+
+                            # if agenda item is enumerated, then try to find correct name
+                            if link_text[1] == ')':
+                                for temp_agenda_name in agenda_names:
+                                    if temp_agenda_name[0] == link_text[0]:
+                                        agenda_name = temp_agenda_name
 
                             votes[enum] = {
                                 'type': 'vote',
