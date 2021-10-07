@@ -107,6 +107,7 @@ class VoteParser(PdfParser):
             elif state == ParserState.TITLE:
                 if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ'):
                     state = ParserState.RESULT
+
                     motion = {
                         'title': title,
                         'text': title,
@@ -114,6 +115,8 @@ class VoteParser(PdfParser):
                         'session': self.session_id,
                         'agenda_items': [self.agenda_item_id]
                     }
+                    if ('osnutek Odloka' in title) or ('osnutek Akta' in title):
+                        motion['tags'] = ['first-reading']
                     # TODO set needs_editing if needed
                     vote = {
                         'name': title,
@@ -129,7 +132,6 @@ class VoteParser(PdfParser):
                     logging.warning(title)
             elif state == ParserState.RESULT:
                 if line.strip().startswith('SKUPAJ'):
-                    # TODO find result
                     result = True
                     motion['result'] = result
 
@@ -140,7 +142,7 @@ class VoteParser(PdfParser):
                     if 'amandma' in motion['title'].lower():
                         # skip saving legislation if is an amdandma
                         pass
-                    elif 'Akta' in data['agenda_name']:
+                    elif 'predlog Akta' in motion['title']:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': motion['title'],
                             'session': self.session_id,
@@ -148,7 +150,8 @@ class VoteParser(PdfParser):
                             'law_type': 'act',
                         })
                         motion['law'] = legislation_obj['id']
-                    elif 'Odloka' in data['agenda_name']:
+
+                    elif 'predlog Odloka' in motion['title']:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': motion['title'],
                             'session': self.session_id,
