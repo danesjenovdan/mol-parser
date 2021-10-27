@@ -125,7 +125,7 @@ class CommitteeSessionsSpider(scrapy.Spider):
                 agenda_name = agenda_name_plain
 
             data = {
-                'type': 'agenda-items',
+                'type': 'committee-agenda-items',
                 'notes': notes,
                 'session_name': session_name,
                 'agenda_name': agenda_name,

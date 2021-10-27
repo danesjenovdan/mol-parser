@@ -48,7 +48,6 @@ class SessionsSpider(scrapy.Spider):
     def parse_session(self, response):
         find_enumerating = r'\b(.)\)'
         find_range_enumerating = r'\b(.)\) do \b(.)\)'
-        order = 0
         words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
         session_name = response.css(".header-holder h1::text").extract_first()
         session_notes = {}
@@ -75,29 +74,35 @@ class SessionsSpider(scrapy.Spider):
                         'session_notes': session_notes
                     }
 
+        order = 1
+        li_order = 1
         for li in response.css(".list-agenda>li"):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
             # get agenda_names: is using for a) b) c)....
             agenda_names = li.css('.file-list-header h3.file-list-open-h3::text').extract()
             agenda_names = list(map(str.strip, agenda_names))
+            text_agenda_name = li.css('div>h3::text').extract_first()
+            is_added_agenda_item = False
 
             notes = {}
-            if self.parse_type in ['questions', None]:
-                if agenda_name and agenda_name.strip() == 'Vprašanja in pobude svetnikov ter odgovori na vprašanja in pobude':
+            if agenda_name and agenda_name.strip() == 'Vprašanja in pobude svetnikov ter odgovori na vprašanja in pobude':
+                if self.parse_type in ['questions', None]:
                     for link in li.css('.file-list-item a'):
                         text = link.css('::text').extract_first()
                         url = link.css('::attr(href)').extract_first()
-
+                        is_added_agenda_item = True
                         yield {
                             'type': 'question',
                             'text': text,
                             'session_name': session_name,
-                            'agenda_name': agenda_name,
+                            'agenda_name': f'{li_order}. {agenda_name}',
                             'date': response.meta["date"],
                             'time': response.meta["time"],
                             'url': url,
-                            'session_notes': session_notes
+                            'session_notes': session_notes,
+                            'order': order
                         }
+                        order += 1
             if self.parse_type in ['votes', None]:
                 votes = {}
                 links = []
@@ -128,7 +133,7 @@ class SessionsSpider(scrapy.Spider):
                                 'type': 'vote',
                                 'pdf_url': f'{self.base_url}{link_url}',
                                 'session_name': session_name,
-                                'agenda_name': agenda_name,
+                                'agenda_name': f'{li_order}. {agenda_name}',
                                 'date': response.meta["date"],
                                 'time': response.meta["time"],
                                 'order': order,
@@ -141,6 +146,7 @@ class SessionsSpider(scrapy.Spider):
                                 'url': f'{self.base_url}{link_url}',
                                 'enums': enums
                             })
+
                 for key, vote in votes.items():
                     if key == 0:
                         tmp_links = links
@@ -150,3 +156,50 @@ class SessionsSpider(scrapy.Spider):
                         'links': tmp_links
                     })
                     yield vote
+                    is_added_agenda_item = True
+
+                # if agenda item has documents and dont have votes (document Glasovanje)
+                if is_added_agenda_item == False and len(agenda_names) > 1:
+                    agenda_names_fixed = []
+                    for item in agenda_names:
+                        if item[1] != ")":
+                            agenda_names_fixed[-1] += f' {item}'
+                        else:
+                            agenda_names_fixed.append(item)
+                    for agenda_name in agenda_names_fixed:
+                        current_enum = agenda_name[0]
+                        agenda_links = []
+                        for link in links:
+                            if current_enum in link['enums']:
+                                agenda_links.append(link)
+                        yield {
+                            'type': 'agenda-item',
+                            'session_name': session_name,
+                            'agenda_name': f'{li_order}. {agenda_name}',
+                            'date': response.meta["date"],
+                            'time': response.meta["time"],
+                            'session_notes': session_notes,
+                            'order': order,
+                            'links': agenda_links
+                        }
+                        order += 1
+                        is_added_agenda_item = True
+
+            if not is_added_agenda_item:
+                # If agenda name is not url
+                if not agenda_names:
+                    agenda_names = [text_agenda_name]
+                for agenda_name in agenda_names:
+                    yield {
+                        'type': 'agenda-item',
+                        'session_name': session_name,
+                        'agenda_name': f'{li_order}. {agenda_name}',
+                        'date': response.meta["date"],
+                        'time': response.meta["time"],
+                        'session_notes': session_notes,
+                        'order': order,
+                        'links': []
+                    }
+
+                    order += 1
+            li_order += 1

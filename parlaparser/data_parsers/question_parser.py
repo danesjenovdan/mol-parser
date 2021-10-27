@@ -35,6 +35,14 @@ class QuestionParser(BaseParser):
 
         self.session_id = session_id
 
+        agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
+            'name': data['agenda_name'].strip(),
+            'datetime': start_time.isoformat(),
+            'session': session_id,
+            'order': data['order']
+        })
+        self.agenda_item_id = agenda_item_id
+
         url = data['url']
         text = data['text']
 
@@ -46,15 +54,18 @@ class QuestionParser(BaseParser):
         mixed_text = splited_text[0]
 
         question_type = 'unkonwn'
+        question_slo_type = ''
 
         if 'odgovor' in mixed_text.lower():
             return
 
         if 'pobud' in mixed_text.lower():
             question_type = 'initiative'
+            question_slo_type = 'Pobuda'
 
         if 'vprašanj' in mixed_text.lower() or 'vprašanj' in mixed_text.lower():
             question_type = 'question'
+            question_slo_type = 'Vprašanje'
 
         author = self.find_name(mixed_text)
 
@@ -76,9 +87,10 @@ class QuestionParser(BaseParser):
         question_id = question['id']
 
         self.data_storage.set_link({
+            'agenda_item': self.agenda_item_id,
             'question': question_id,
             'url': f'{settings.BASE_URL}{url}',
-            'name': f'{question_type}: {question_text}'
+            'name': f'{question_slo_type}{":" if question_slo_type else ""} {question_text}'
         })
 
 
