@@ -82,7 +82,8 @@ class CommitteeSessionsSpider(scrapy.Spider):
     def parse_session(self, response):
         find_enumerating = r'\b(.)\)'
         find_range_enumerating = r'\b(.)\) do \b(.)\)'
-        order = 0
+        order = 1
+        
         words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
         session_name = response.css(".header-holder h1::text").extract_first()
         if self.parse_type in ['speeches', None]:
@@ -128,7 +129,7 @@ class CommitteeSessionsSpider(scrapy.Spider):
                 'type': 'committee-agenda-items',
                 'notes': notes,
                 'session_name': session_name,
-                'agenda_name': agenda_name,
+                'agenda_name': f'{order}. {agenda_name}',
                 'date': response.meta["date"],
                 'time': response.meta["time"],
                 'classification': response.meta["classification"],
