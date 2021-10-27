@@ -214,6 +214,7 @@ class DataStorage(object):
             return self.agenda_items[self.get_agenda_key(data)], False
         else:
             added_agenda_item = self.parladata_api.set_agenda_item(data)
+            self.agenda_items[self.get_agenda_key(data)] = added_agenda_item['id']
             return added_agenda_item['id'], True
 
     def check_if_motion_is_parsed(self, vote):
