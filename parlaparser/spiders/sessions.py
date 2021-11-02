@@ -45,16 +45,51 @@ class SessionsSpider(scrapy.Spider):
                 callback=self.parse_session,
                 meta={'date': date, 'time': time})
 
+    # parse vote from attachment section
+    def parse_attachment_vote(self, response, section_name):
+        parse_agenda_item_vote = False
+        # find votings of agenda items
+        if self.parse_type in ['votes', None]:
+            for child in response.css('div.inner>*'):
+                if parse_agenda_item_vote:
+                    links = []
+                    for link in child.css('a'):
+                        link_text = link.css('::text').extract_first()
+                        link_url = link.css('::attr(href)').extract_first()
+                        if 'Glasovan' in link_text:
+                            return {
+                                'type': 'vote',
+                                'pdf_url': f'{self.base_url}{link_url}',
+                                'session_name': self.session_name,
+                                'agenda_name': None,
+                                'date': response.meta["date"],
+                                'time': response.meta["time"],
+                                'order': self.order,
+                                'session_notes': self.session_notes,
+                                'links': links
+                            }
+                            self.order += 1
+                        else:
+                            links.append({
+                                'tag': section_name,
+                                'title': link_text,
+                                'url': f'{self.base_url}{link_url}',
+                                'enums': 0
+                            })
+                if child.css('::text').extract_first() == section_name:
+                    parse_agenda_item_vote = True
+
     def parse_session(self, response):
         find_enumerating = r'\b(.)\)'
         find_range_enumerating = r'\b(.)\) do \b(.)\)'
         words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
         session_name = response.css(".header-holder h1::text").extract_first()
-        session_notes = {}
+        self.session_name = session_name
+        self.session_notes = {}
 
         for doc in response.css('ul.attached-files')[-1].css('a'):
             if 'Zapisnik' in doc.css('::text').extract_first():
-                session_notes = {
+                self.session_notes = {
                     'url': f'{self.base_url}{doc.css("::attr(href)").extract_first()}',
                     'title': doc.css('::text').extract_first()
                 }
@@ -71,11 +106,14 @@ class SessionsSpider(scrapy.Spider):
                         'session_name': session_name,
                         'date': response.meta["date"],
                         'time': response.meta["time"],
-                        'session_notes': session_notes
+                        'session_notes': self.session_notes
                     }
 
-        order = 1
-        li_order = 1
+        self.order = 1
+        self.li_order = 1
+
+        yield self.parse_attachment_vote(response, 'Sprejeti dnevni red')
+
         for li in response.css(".list-agenda>li"):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
             # get agenda_names: is using for a) b) c)....
@@ -95,14 +133,14 @@ class SessionsSpider(scrapy.Spider):
                             'type': 'question',
                             'text': text,
                             'session_name': session_name,
-                            'agenda_name': f'{li_order}. {agenda_name}',
+                            'agenda_name': f'{self.li_order}. {agenda_name}',
                             'date': response.meta["date"],
                             'time': response.meta["time"],
                             'url': url,
-                            'session_notes': session_notes,
-                            'order': order
+                            'session_notes': self.session_notes,
+                            'order': self.order
                         }
-                        order += 1
+                        self.order += 1
             if self.parse_type in ['votes', None]:
                 votes = {}
                 links = []
@@ -116,7 +154,7 @@ class SessionsSpider(scrapy.Spider):
                         if range_enums:
                             enums = words_orders[words_orders.index(range_enums[0][0]):words_orders.index(range_enums[0][1])+1]
                         if 'Glasovan' in link_text:
-                            order += 1
+                            self.order += 1
                             vote_link = link.css('::attr(href)').extract_first()
                             if enums:
                                 enum = enums[0]
@@ -133,11 +171,11 @@ class SessionsSpider(scrapy.Spider):
                                 'type': 'vote',
                                 'pdf_url': f'{self.base_url}{link_url}',
                                 'session_name': session_name,
-                                'agenda_name': f'{li_order}. {agenda_name}',
+                                'agenda_name': f'{self.li_order}. {agenda_name}',
                                 'date': response.meta["date"],
                                 'time': response.meta["time"],
-                                'order': order,
-                                'session_notes': session_notes
+                                'order': self.order,
+                                'session_notes': self.session_notes
                             }
                         else:
                             links.append({
@@ -175,14 +213,14 @@ class SessionsSpider(scrapy.Spider):
                         yield {
                             'type': 'agenda-item',
                             'session_name': session_name,
-                            'agenda_name': f'{li_order}. {agenda_name}',
+                            'agenda_name': f'{self.li_order}. {agenda_name}',
                             'date': response.meta["date"],
                             'time': response.meta["time"],
-                            'session_notes': session_notes,
-                            'order': order,
+                            'session_notes': self.session_notes,
+                            'order': self.order,
                             'links': agenda_links
                         }
-                        order += 1
+                        self.order += 1
                         is_added_agenda_item = True
 
             if not is_added_agenda_item:
@@ -193,13 +231,15 @@ class SessionsSpider(scrapy.Spider):
                     yield {
                         'type': 'agenda-item',
                         'session_name': session_name,
-                        'agenda_name': f'{li_order}. {agenda_name}',
+                        'agenda_name': f'{self.li_order}. {agenda_name}',
                         'date': response.meta["date"],
                         'time': response.meta["time"],
-                        'session_notes': session_notes,
-                        'order': order,
+                        'session_notes': self.session_notes,
+                        'order': self.order,
                         'links': []
                     }
 
-                    order += 1
-            li_order += 1
+                    self.order += 1
+            self.li_order += 1
+
+        yield self.parse_attachment_vote(response, 'Razširitev dnevnega reda')

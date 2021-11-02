@@ -46,25 +46,27 @@ class VoteParser(PdfParser):
             self.data_storage.set_link(link_data)
 
         self.session_id = session_id
+        if data['agenda_name']:
+            agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
+                'name': data['agenda_name'].strip(),
+                'datetime': start_time.isoformat(),
+                'session': session_id,
+                'order': data['order']
+            })
+            self.agenda_item_id = agenda_item_id
+            if added:
+                for link in data['links']:
+                    # save links
+                    link_data = {
+                        'agenda_item': self.agenda_item_id,
+                        'url': link['url'],
+                        'name': link['title'],
+                        'tags': [link['tag']]
+                    }
+                    self.data_storage.set_link(link_data)
+        else:
+            self.agenda_item_id = None
 
-        agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
-            'name': data['agenda_name'].strip(),
-            'datetime': start_time.isoformat(),
-            'session': session_id,
-            'order': data['order']
-        })
-        self.agenda_item_id = agenda_item_id
-        if added:
-            for link in data['links']:
-                # save links
-                link_data = {
-                    'agenda_item': self.agenda_item_id,
-                    'url': link['url'],
-                    'name': link['title'],
-                    'tags': [link['tag']]
-                }
-                self.data_storage.set_link(link_data)
-        
 
         state = ParserState.META
         start_time = None
@@ -113,8 +115,11 @@ class VoteParser(PdfParser):
                         'text': title,
                         'datetime': start_time.isoformat(),
                         'session': self.session_id,
-                        'agenda_items': [self.agenda_item_id]
                     }
+                    if self.agenda_item_id:
+                        motion.update({
+                            'agenda_items': [self.agenda_item_id]
+                        })
                     if ('osnutek Odloka' in title) or ('osnutek Akta' in title):
                         motion['tags'] = ['first-reading']
                     # TODO set needs_editing if needed
