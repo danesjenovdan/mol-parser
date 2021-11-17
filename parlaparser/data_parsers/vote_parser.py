@@ -152,7 +152,7 @@ class VoteParser(PdfParser):
                             'text': motion['title'],
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
-                            'law_type': 'act',
+                            'classification': 'act',
                         })
                         motion['law'] = legislation_obj['id']
 
@@ -161,7 +161,7 @@ class VoteParser(PdfParser):
                             'text': motion['title'],
                             'session': self.session_id,
                             'datetime': self.start_time.isoformat(),
-                            'law_type': 'decree',
+                            'classification': 'decree',
                         })
                         motion['law'] = legislation_obj['id']
 
