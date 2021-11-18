@@ -96,6 +96,21 @@ class SpeechesParser(DocxParser):
                 continue
             elif state == ParserState.CONTENT and len(text.strip()) > 0:
                 current_text += f'{text}\n'
+        if current_text:
+            results = re.findall(for_text, current_text) + re.findall(against_text, current_text)
+            if len(results) > 0:
+                tags = ['vote']
+            else:
+                tags = []
+            self.speeches.append({
+                'speaker': person_id,
+                'content': current_text.strip(),
+                'session': session_id,
+                'order': order,
+                'tags': tags,
+                'party': person_party,
+                'start_time': start_time.isoformat()
+            })
         self.data_storage.add_speeches(self.speeches)
 
     def skip_line(self, text):
