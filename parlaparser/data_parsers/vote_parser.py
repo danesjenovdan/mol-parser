@@ -184,7 +184,6 @@ class VoteParser(PdfParser):
                         if 'law' in motion.keys():
                             link_data.update({'law': motion['law']})
                         self.data_storage.set_link(link_data)
- 
 
                     logging.warning(vote)
                     logging.warning('......:::::::SAVE:::::......')
