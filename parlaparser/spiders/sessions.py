@@ -153,7 +153,6 @@ class SessionsSpider(scrapy.Spider):
                         if range_enums:
                             enums = words_orders[words_orders.index(range_enums[0][0]):words_orders.index(range_enums[0][1])+1]
                         if 'Glasovan' in link_text:
-                            order += 1
                             vote_link = link.css('::attr(href)').extract_first()
                             if enums:
                                 enum = enums[0]
@@ -176,6 +175,7 @@ class SessionsSpider(scrapy.Spider):
                                 'order': order,
                                 'session_notes': session_notes
                             }
+                            order += 1
                         else:
                             links.append({
                                 'tag': group,
