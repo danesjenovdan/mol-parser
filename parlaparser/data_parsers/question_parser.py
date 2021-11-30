@@ -105,9 +105,21 @@ class QuestionParser(BaseParser):
         elif 'svetnice' in mixed_text.lower():
             person_name = mixed_text.split('svetnice')[1].strip()
 
-        elif 'svetniškega kluba' in mixed_text.lower():
-            org_name = mixed_text.split('Svetniškega kluba')[1].strip()
-            return {}
+        elif re.findall(r'\wvetniškega klub.', mixed_text.lower()):
+            #org_name = mixed_text.split('Svetniškega kluba')[1].strip()
+            org_name = re.split(r'\wvetniškega klub.', mixed_text.lower())[1].strip()
+            if org_name:
+                organization_id, added_org = self.data_storage.get_or_add_organization(
+                    org_name,
+                    {
+                        'name': org_name,
+                        'parser_names': org_name,
+                        'classification': 'pg'
+                    }
+                )
+                return {'organization_authors': [organization_id]}
+            else:
+                return {}
 
         if person_name:
             person_id, added_person = self.data_storage.get_or_add_person(
@@ -117,4 +129,4 @@ class QuestionParser(BaseParser):
         else:
             logging.debug(f'Cannot find peson name: {mixed_text}')
             raise Exception(f'Cannot find peson name: {mixed_text}')
-        return {'authors': [person_id]}
+        return {'person_authors': [person_id]}
