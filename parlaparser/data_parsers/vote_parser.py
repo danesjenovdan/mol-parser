@@ -77,9 +77,14 @@ class VoteParser(PdfParser):
         vote_id = None
         result = None
         title = '' #data['agenda_name']
+        pre_title = ''
         string_with_result = ''
         motion = {}
         vote = {}
+
+        legislation_id = None
+
+        legislation_added = False
 
         lines = ''.join(self.pdf).split('\n')
         ballots = {}
@@ -94,7 +99,7 @@ class VoteParser(PdfParser):
             elif state == ParserState.PRE_TITLE:
                 if line.strip().startswith('AD'):
                     pass
-                elif line.strip().startswith('PREDLOG SKLEPA:') or 'PREDLOG UGOTOVITVENEGA SKLEPA:' in line:
+                elif 'PREDLOG SKLEPA' in line or 'PREDLOGU SKLEPA' in line or 'PREDLOG UGOTOVITVENEGA SKLEPA:' in line or 'AMANDMA' in line:
                     # reset tilte and go to title mode
                     state = ParserState.TITLE
                     title = ''
@@ -105,9 +110,11 @@ class VoteParser(PdfParser):
                     state = ParserState.TITLE
                 else:
                     title = f'{title} {line.strip()}'
+                    pre_title = f'{pre_title} {line.strip()}'
 
             elif state == ParserState.TITLE:
-                if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ'):
+                # TODO do this better
+                if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ') or line.strip().startswith('PREDLOGU SKLEPA'):
                     state = ParserState.RESULT
 
                     motion = {
@@ -144,26 +151,36 @@ class VoteParser(PdfParser):
                         logging.info('vote is already parsed')
                         break
 
+                    if ')' == pre_title[1].strip():
+                        pre_title = pre_title[2:].strip()
+
                     if 'amandma' in motion['title'].lower():
                         # skip saving legislation if is an amdandma
                         pass
-                    elif 'predlog Akta' in motion['title']:
+                    elif legislation_added:
+                        pass
+                    elif 'PREDLOG AKTA' in motion['title']:
                         legislation_obj = self.data_storage.set_legislation({
-                            'text': motion['title'],
+                            'text': pre_title,
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
                             'classification': 'act',
                         })
-                        motion['law'] = legislation_obj['id']
+                        legislation_id = legislation_obj['id']
+                        legislation_added = True
 
-                    elif 'predlog Odloka' in motion['title']:
+                    elif 'PREDLOG ODLOKA' in pre_title:
                         legislation_obj = self.data_storage.set_legislation({
-                            'text': motion['title'],
+                            'text': pre_title,
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
                             'classification': 'decree',
                         })
-                        motion['law'] = legislation_obj['id']
+                        legislation_id = legislation_obj['id']
+                        legislation_added = True
+
+                    if legislation_id:
+                        motion['law'] = legislation_id
 
                     motion_obj = self.data_storage.set_motion(motion)
                     vote['motion'] = motion_obj['id']
