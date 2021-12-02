@@ -172,7 +172,7 @@ class VoteParser(PdfParser):
                             'text': pre_title,
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
-                            'classification': 'act',
+                            'classification': self.data_storage.legislation_classification['act'],
                         })
                         legislation_id = legislation_obj['id']
                         legislation_added = True
@@ -182,7 +182,7 @@ class VoteParser(PdfParser):
                             'text': pre_title,
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
-                            'classification': 'decree',
+                            'classification': self.data_storage.legislation_classification['decree'],
                         })
                         legislation_id = legislation_obj['id']
                         legislation_added = True
