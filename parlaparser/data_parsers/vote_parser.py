@@ -99,22 +99,28 @@ class VoteParser(PdfParser):
             elif state == ParserState.PRE_TITLE:
                 if line.strip().startswith('AD'):
                     pass
-                elif 'PREDLOG SKLEPA' in line or 'PREDLOGU SKLEPA' in line or 'PREDLOG UGOTOVITVENEGA SKLEPA:' in line or 'AMANDMA' in line:
+                elif 'PREDLOG SKLEPA' in line or 'PREDLOGU SKLEPA' in line or 'PREDLOG UGOTOVITVENEGA SKLEPA:' in line or 'PREDLOG POSTOPKOVNEGA PREDLOGA:' in line:
                     # reset tilte and go to title mode
                     state = ParserState.TITLE
                     title = ''
-                elif line.strip().startswith('AMANDMA'):
+                elif 'AMANDMA' in line:
                     state = ParserState.TITLE
                     title = f'{line.strip()}'
                 elif line.strip().startswith('SKUPAJ'):
                     state = ParserState.TITLE
                 else:
                     title = f'{title} {line.strip()}'
-                    pre_title = f'{pre_title} {line.strip()}'
+                    if not legislation_added:
+                        pre_title = f'{pre_title} {line.strip()}'
 
             elif state == ParserState.TITLE:
                 # TODO do this better
-                if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ') or line.strip().startswith('PREDLOGU SKLEPA'):
+                #if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ') or line.strip().startswith('PREDLOGU SKLEPA'):
+                if line.strip()[1]==')':
+                    line = line.strip()[2:].strip()
+                if line.strip().startswith('AMANDMA'):
+                    title = ''
+                if line.strip().startswith('SKUPAJ'):
                     state = ParserState.RESULT
 
                     motion = {
@@ -139,6 +145,8 @@ class VoteParser(PdfParser):
                     if self.data_storage.check_if_motion_is_parsed(motion):
                         logging.info('vote is already parsed')
                         break
+                if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('PREDLOGU SKLEPA') or line.strip().startswith('PREDLOG POSTOPKOVNEGA PREDLOGA'):
+                    title = ''
                 else:
                     title = f'{title} {line.strip()}'
                     logging.warning(title)
@@ -151,15 +159,15 @@ class VoteParser(PdfParser):
                         logging.info('vote is already parsed')
                         break
 
-                    if ')' == pre_title[1].strip():
-                        pre_title = pre_title[2:].strip()
+                    if pre_title.strip() and ')' == pre_title.strip()[1]:
+                        pre_title = pre_title.strip()[2:]
 
-                    if 'amandma' in motion['title'].lower():
-                        # skip saving legislation if is an amdandma
+                    #if 'amandma' in motion['title'].lower():
+                    #    # skip saving legislation if is an amdandma
+                    #    pass
+                    if legislation_added:
                         pass
-                    elif legislation_added:
-                        pass
-                    elif 'PREDLOG AKTA' in motion['title']:
+                    elif 'PREDLOG AKTA' in pre_title:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': pre_title,
                             'session': self.session_id,
