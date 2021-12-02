@@ -167,6 +167,16 @@ class VoteParser(PdfParser):
                     #    pass
                     if legislation_added:
                         pass
+
+                    elif 'PREDLOG ODREDBE' in pre_title:
+                        legislation_obj = self.data_storage.set_legislation({
+                            'text': pre_title,
+                            'session': self.session_id,
+                            'timestamp': self.start_time.isoformat(),
+                            'classification': self.data_storage.legislation_classification['provision'],
+                        })
+                        legislation_id = legislation_obj['id']
+                        legislation_added = True
                     elif 'PREDLOG AKTA' in pre_title:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': pre_title,
