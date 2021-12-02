@@ -21,6 +21,7 @@ class DataStorage(object):
     sessions_with_speeches = []
     questions = {}
     legislation = {}
+    legislation_classification = {}
     acts = {}
     agenda_items = {}
     memberships = defaultdict(lambda: defaultdict(list))
@@ -73,6 +74,9 @@ class DataStorage(object):
         for question in self.parladata_api.get_questions():
             self.questions[self.get_question_key(question)] = {'id': question['id'], 'answer': question['answer_timestamp']}
         logging.warning(f'loaded {len(self.questions)} questions')
+
+        for leg_clas in self.parladata_api.get_legislation_classifications():
+            self.legislation_classification[leg_clas['name']] = leg_clas['id']
 
         # for legislation in self.parladata_api.get_legislation():
         #     if legislation['classification'] == 'act':

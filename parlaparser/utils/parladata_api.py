@@ -80,6 +80,9 @@ class ParladataApi(object):
     def get_legislation(self):
         return self._get_objects('legislation')
 
+    def get_legislation_classifications(self):
+        return self._get_objects('legislation-classifications')
+
     def get_memberships(self):
         return self._get_objects('person-memberships/?role=voter')
 
