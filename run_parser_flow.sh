@@ -8,8 +8,8 @@ echo "start setting votes results"
 python manage.py set_votes_result --majority relative_normal
 echo "start setting legislation results"
 python manage.py set_legislation_results
-echo "start setting motion tags"
-python manage.py set_motion_tags
+# echo "start setting motion tags"
+# python manage.py set_motion_tags
 echo "start pairing votes with speeches"
 python manage.py pair_votes_and_speeches
 echo "lematize speeches"

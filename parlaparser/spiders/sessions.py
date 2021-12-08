@@ -23,6 +23,9 @@ class SessionsSpider(scrapy.Spider):
         super().__init__(*args, **kwargs)
         self.parse_name = parse_name
         self.parse_type = parse_type
+        self.find_enumerating = r'\b(.)\)'
+        self.find_range_enumerating = r'\b(.)\) do \b(.)\)'
+        self.words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
 
     def parse(self, response):
         for li in reversed(response.css("#page-content .ul-table li")):
@@ -46,43 +49,68 @@ class SessionsSpider(scrapy.Spider):
                 meta={'date': date, 'time': time})
 
     # parse vote from attachment section
-    def parse_attachment_vote(self, response, section_name, order, session_name, session_notes):
+    def parse_attachment_vote(self, response, section_name, order, session_name, session_notes, basic_vote_data):
         parse_agenda_item_vote = False
         # find votings of agenda items
+        votes = {}
+        links = []
+        agenda_names = [section_name]
         if self.parse_type in ['votes', None]:
             for child in response.css('div.inner>*'):
                 if parse_agenda_item_vote:
                     links = []
+
                     for link in child.css('a'):
-                        link_text = link.css('::text').extract_first()
-                        link_url = link.css('::attr(href)').extract_first()
-                        if 'Glasovan' in link_text:
-                            return {
-                                'type': 'vote',
-                                'pdf_url': f'{self.base_url}{link_url}',
-                                'session_name': session_name,
-                                'agenda_name': None,
-                                'date': response.meta["date"],
-                                'time': response.meta["time"],
-                                'order': order,
-                                'session_notes': session_notes,
-                                'links': links
-                            }
-                            order += 1
-                        else:
-                            links.append({
-                                'tag': section_name,
-                                'title': link_text,
-                                'url': f'{self.base_url}{link_url}',
-                                'enums': 0
-                            })
-                if child.css('::text').extract_first() == section_name:
+                        link_text, link_url, enums = self.find_links_and_enums(link)
+
+                        order = self.initiate_vote_or_link(
+                            votes,
+                            links,
+                            link_text,
+                            link_url,
+                            enums,
+                            agenda_names,
+                            basic_vote_data,
+                            section_name,
+                            None,
+                            order
+                        )
+
+                current_section = child.css('::text').extract_first()
+                if current_section == section_name:
                     parse_agenda_item_vote = True
+                elif current_section in ['', None]:
+                    pass
+                else:
+                    parse_agenda_item_vote = False
+
+
+        tmp = self.update_votes_with_links(votes, links)
+
+        votes = votes.values()
+        if votes:
+            all_links = []
+            all_urls = []
+            for vote in votes:
+                if section_name == 'Sprejeti dnevni red':
+                    # dont create agneda item for Sprejeti dnevni red
+                    vote['agenda_name'] = None
+                for link in vote['links']:
+                    if link['url'] not in all_urls:
+                        all_urls.append(link['url'])
+                        all_links.append(link)
+            agenda_item = {
+                    'type': 'agenda-item',
+                    'agenda_name': section_name,
+                    'order': order,
+                    'links': all_links
+                }
+            agenda_item.update(basic_vote_data)
+        else:
+            agenda_item = None
+        return votes, agenda_item
 
     def parse_session(self, response):
-        find_enumerating = r'\b(.)\)'
-        find_range_enumerating = r'\b(.)\) do \b(.)\)'
-        words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
         session_name = response.css(".header-holder h1::text").extract_first()
         session_notes = {}
 
@@ -111,7 +139,16 @@ class SessionsSpider(scrapy.Spider):
         order = 1
         li_order = 1
 
-        yield self.parse_attachment_vote(response, 'Sprejeti dnevni red', order, session_name, session_notes)
+        basic_vote_data = {
+            'session_notes': session_notes,
+            'session_name': session_name,
+            'date': response.meta["date"],
+            'time': response.meta["time"],
+        }
+
+        parsed_votes, agenda_item = self.parse_attachment_vote(response, 'Sprejeti dnevni red', -1, session_name, session_notes, basic_vote_data)
+        for vote in parsed_votes:
+            yield vote
 
         for li in response.css(".list-agenda>li"):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
@@ -146,54 +183,23 @@ class SessionsSpider(scrapy.Spider):
                 for list_item in li.css('.file-list-item'):
                     group = list_item.css('h4::text').extract_first()
                     for link in list_item.css('a'):
-                        link_text = ' '.join(link.css('::text').extract()).strip()
-                        link_url = link.css('::attr(href)').extract_first()
-                        enums = re.findall(find_enumerating, link_text)
-                        range_enums = re.findall(find_range_enumerating, link_text)
-                        if range_enums:
-                            enums = words_orders[words_orders.index(range_enums[0][0]):words_orders.index(range_enums[0][1])+1]
-                        if 'Glasovan' in link_text:
-                            vote_link = link.css('::attr(href)').extract_first()
-                            if enums:
-                                enum = enums[0]
-                            else:
-                                enum = 0
 
-                            # if agenda item is enumerated, then try to find correct name
-                            if link_text[1] == ')':
-                                for temp_agenda_name in agenda_names:
-                                    if temp_agenda_name and temp_agenda_name[0] == link_text[0]:
-                                        agenda_name = temp_agenda_name
+                        link_text, link_url, enums = self.find_links_and_enums(link)
 
-                            votes[enum] = {
-                                'type': 'vote',
-                                'pdf_url': f'{self.base_url}{link_url}',
-                                'session_name': session_name,
-                                'agenda_name': f'{li_order}. {agenda_name}',
-                                'date': response.meta["date"],
-                                'time': response.meta["time"],
-                                'order': order,
-                                'session_notes': session_notes
-                            }
-                            order += 1
-                        else:
-                            links.append({
-                                'tag': group,
-                                'title': link_text,
-                                'url': f'{self.base_url}{link_url}',
-                                'enums': enums
-                            })
+                        order = self.initiate_vote_or_link(
+                            votes,
+                            links,
+                            link_text,
+                            link_url,
+                            enums,
+                            agenda_names,
+                            basic_vote_data,
+                            group,
+                            li_order,
+                            order
+                        )
 
-                for key, vote in votes.items():
-                    if key == 0:
-                        tmp_links = links
-                    else:
-                        tmp_links = [link for link in links if key in link['enums']]
-                    vote.update({
-                        'links': tmp_links
-                    })
-                    yield vote
-                    is_added_agenda_item = True
+                is_added_agenda_item = self.update_votes_with_links(votes, links, is_added_agenda_item)
 
                 # if agenda item has documents and dont have votes (document Glasovanje)
                 if is_added_agenda_item == False and len(agenda_names) > 1:
@@ -221,6 +227,8 @@ class SessionsSpider(scrapy.Spider):
                         }
                         order += 1
                         is_added_agenda_item = True
+            for vote in votes.values():
+                yield vote
 
             if not is_added_agenda_item:
                 # If agenda name is not url
@@ -241,4 +249,77 @@ class SessionsSpider(scrapy.Spider):
                     order += 1
             li_order += 1
 
-        yield self.parse_attachment_vote(response, 'Razširitev dnevnega reda', order, session_name, session_notes)
+        parsed_votes, agenda_item = self.parse_attachment_vote(response, 'Razširitev dnevnega reda', order, session_name, session_notes, basic_vote_data)
+        if agenda_item:
+            yield agenda_item
+        for vote in parsed_votes:
+            yield vote
+
+    def find_links_and_enums(self, link):
+        link_text = ' '.join(link.css('::text').extract()).strip()
+        link_url = link.css('::attr(href)').extract_first()
+        enums = re.findall(self.find_enumerating, link_text)
+        range_enums = re.findall(self.find_range_enumerating, link_text)
+        if range_enums:
+            enums = self.words_orders[self.words_orders.index(range_enums[0][0]):self.words_orders.index(range_enums[0][1])+1]
+
+        return link_text, link_url, enums
+
+    def initiate_vote_or_link(self, votes, links, link_text, link_url, enums, agenda_names, basic_vote_data, group, li_order, order):
+        """
+        This method create votes and links and prepares enumerating objects.
+        """
+        if 'Glasovan' in link_text:
+            if enums:
+                enum = enums[0]
+            else:
+                enum = 0
+
+            agenda_name = agenda_names[0]
+
+            # if agenda item is enumerated, then try to find correct name
+            if link_text[1] == ')':
+                for temp_agenda_name in agenda_names:
+                    if temp_agenda_name and temp_agenda_name[0] == link_text[0]:
+                        agenda_name = temp_agenda_name
+
+            if li_order:
+                full_agenda_name = f'{li_order}. {agenda_name}'
+            else:
+                full_agenda_name = agenda_name
+            new_vote = {
+                'type': 'vote',
+                'pdf_url': f'{self.base_url}{link_url}',
+                'agenda_name': full_agenda_name,
+                'order': order,
+            }
+            new_vote.update(basic_vote_data)
+
+            votes[enum] = new_vote
+            order += 1
+        else:
+            links.append({
+                'tag': group,
+                'title': link_text,
+                'url': f'{self.base_url}{link_url}',
+                'enums': enums
+            })
+        return order
+
+    def update_votes_with_links(self, votes, links, is_added_agenda_item=False):
+        """
+        This method find enumerated links and add it to vote
+        """
+        for key, vote in votes.items():
+            if key == 0:
+                tmp_links = links
+            else:
+                # add also non enumerated docs
+                tmp_links = list(filter(lambda link: link['enums'] == [], links))
+                tmp_links = tmp_links + [link for link in links if key in link['enums']]
+            votes[key].update({
+                'links': tmp_links
+            })
+            #return vote
+            is_added_agenda_item = True
+        return is_added_agenda_item
