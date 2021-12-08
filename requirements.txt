@@ -1,6 +1,6 @@
 editdistance
 ipython
 Scrapy
-pdftotext
+pdftotext==2.2.0
 python-docx
 requests

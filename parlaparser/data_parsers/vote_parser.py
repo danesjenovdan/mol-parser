@@ -89,6 +89,8 @@ class VoteParser(PdfParser):
         lines = ''.join(self.pdf).split('\n')
         ballots = {}
         for line in lines:
+            if not line.strip():
+                continue
             if state == ParserState.META:
                 if line.startswith('DNE'):
                     date_str = line.split(" ")[2]   
