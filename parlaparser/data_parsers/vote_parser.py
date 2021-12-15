@@ -292,25 +292,27 @@ class VoteParser(PdfParser):
 
                 logging.warning('SPLIT')
                 logging.warning(line)
-                person_name, option = line.split(':')
-
-                person_id, added_person = self.data_storage.get_or_add_person(
-                    person_name.strip()
-                )
-                remote_options = {
-                    'NI GLASOVAL/A': 'abstain',
-                    'DA': 'for',
-                    'ZA': 'for',
-                    'NE': 'against',
-                    'PROTI': 'against',
-                }
                 try:
+                    person_name, option = line.split(':')
+
+                    person_id, added_person = self.data_storage.get_or_add_person(
+                        person_name.strip()
+                    )
+                    remote_options = {
+                        'NI GLASOVAL/A': 'abstain',
+                        'DA': 'for',
+                        'ZA': 'for',
+                        'NE': 'against',
+                        'PROTI': 'against',
+                    }
+                
                     option = remote_options[option.strip()]
                 except:
                     logging.warning('....:::::UNPREDICTED OPTION:::::......')
                     logging.warning(line)
                     state = ParserState.META
                     self.data_storage.set_ballots(list(ballots.values()))
+                    ballots = {}
                     # set vote as needs editing
                     for vote in all_votes_ids:
                         self.data_storage.patch_vote(vote, {'needs_editing': True})
