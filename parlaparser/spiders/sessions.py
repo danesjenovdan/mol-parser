@@ -295,6 +295,13 @@ class SessionsSpider(scrapy.Spider):
             }
             new_vote.update(basic_vote_data)
 
+            links.append({
+                'tag': 'vote-pdf',
+                'title': link_text,
+                'url': f'{self.base_url}{link_url}',
+                'enums': enums
+            })
+
             votes[enum] = new_vote
             order += 1
         else:
