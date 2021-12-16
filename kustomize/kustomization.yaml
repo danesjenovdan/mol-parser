@@ -6,4 +6,4 @@ resources:
 images:
   - name: parlaparser-ljubljana
     newName: rg.fr-par.scw.cloud/djnd/parlaparser-ljubljana
-    newTag: 'a12c66e98c5f38655bc8a8617e8e15cbd14d6f0f'
+    newTag: 'a00c28c943db30d3e326d3079333bf39187d5821'
