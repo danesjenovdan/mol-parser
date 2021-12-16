@@ -266,3 +266,21 @@ class DataStorage(object):
                     else:
                         return mem['on_behalf_of']
         return None
+
+    def get_members_on_date(self, search_date, core_organization):
+        output = []
+        search_date = search_date
+        memberships = self.memberships[core_organization]
+        for person_id in memberships.keys():
+            person_membership = memberships[person_id]
+            for membership in person_membership:
+                start_time = datetime.strptime(membership['start_time'], "%Y-%m-%dT%H:%M:%S")
+                if start_time <= search_date:
+                    if membership['end_time']:
+                        end_time = datetime.strptime(membership['end_time'], "%Y-%m-%dT%H:%M:%S")
+                        if end_time >= search_date:
+                            output.append(membership['member'])
+                    else:
+                        output.append(membership['member'])
+        return output
+
