@@ -82,6 +82,8 @@ class VoteParser(PdfParser):
         motion = {}
         vote = {}
 
+        self.vote_count = 0
+
         legislation_id = None
 
         legislation_added = False
@@ -170,26 +172,6 @@ class VoteParser(PdfParser):
                     if legislation_added:
                         pass
 
-                    # dont parse provision and act
-                    # elif 'PREDLOG ODREDBE' in pre_title:
-                    #     legislation_obj = self.data_storage.set_legislation({
-                    #         'text': pre_title,
-                    #         'session': self.session_id,
-                    #         'timestamp': self.start_time.isoformat(),
-                    #         'classification': self.data_storage.legislation_classification['provision'],
-                    #     })
-                    #     legislation_id = legislation_obj['id']
-                    #     legislation_added = True
-                    # elif 'PREDLOG AKTA' in pre_title:
-                    #     legislation_obj = self.data_storage.set_legislation({
-                    #         'text': pre_title,
-                    #         'session': self.session_id,
-                    #         'timestamp': self.start_time.isoformat(),
-                    #         'classification': self.data_storage.legislation_classification['act'],
-                    #     })
-                    #     legislation_id = legislation_obj['id']
-                    #     legislation_added = True
-
                     elif 'PREDLOG ODLOKA' in pre_title:
                         legislation_obj = self.data_storage.set_legislation({
                             'text': pre_title,
@@ -210,11 +192,11 @@ class VoteParser(PdfParser):
                     vote_id = int(vote_obj['id'])
                     all_votes_ids.append(vote_id)
                     motion_id = motion_obj['id']
+                    self.vote_count += 1
                     for link in data['links']:
                         # save links
                         link_data = {
                             'motion': motion_id,
-                            #'agenda_item': self.agenda_item_id,
                             'url': link['url'],
                             'name': link['title'],
                             'tags': [link['tag']]
@@ -241,7 +223,7 @@ class VoteParser(PdfParser):
                     state = ParserState.META
 
                     self.patch_result(ballots, vote_id, motion_id)
-
+                    self.validate_ballots(ballots, vote_id, self.start_time)
                     self.data_storage.set_ballots(list(ballots.values()))
                     title = ''
                     ballots = {}
@@ -255,11 +237,6 @@ class VoteParser(PdfParser):
                     person_id, added_person = self.data_storage.get_or_add_person(
                         person_name.strip()
                     )
-                    # person_party = self.data_storage.get_membership_of_member_on_date(
-                    #     person_id,
-                    #     self.start_time,
-                    #     self.data_storage.main_org_id
-                    # )
 
                     # Work around for duplicated person ballots on the same vote
                     if person_id in ballots.keys():
@@ -268,7 +245,6 @@ class VoteParser(PdfParser):
 
                     ballots[person_id] = {
                         'personvoter': person_id,
-                        #'orgvoter': person_party,
                         'option': option,
                         'session': self.session_id,
                         'vote': vote_id
@@ -280,6 +256,11 @@ class VoteParser(PdfParser):
             elif state == ParserState.REMOTE_VOTING:
                 if not line.strip():
                     continue
+
+                if self.vote_count > 1:
+                    for vote in all_votes_ids:
+                        self.data_storage.patch_vote(vote, {'needs_editing': True})
+                        break
                 if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA') or re.findall(find_paging, line):
                     state = ParserState.META
 
@@ -288,6 +269,7 @@ class VoteParser(PdfParser):
                     self.data_storage.set_ballots(list(ballots.values()))
                     title = ''
                     ballots = {}
+                    self.vote_count = 0
                     continue
 
                 logging.warning('SPLIT')
@@ -305,13 +287,14 @@ class VoteParser(PdfParser):
                         'NE': 'against',
                         'PROTI': 'against',
                     }
-                
+
                     option = remote_options[option.strip()]
                 except:
                     logging.warning('....:::::UNPREDICTED OPTION:::::......')
                     logging.warning(line)
                     state = ParserState.META
                     self.data_storage.set_ballots(list(ballots.values()))
+                    self.validate_ballots(ballots, vote_id, self.start_time)
                     ballots = {}
                     # set vote as needs editing
                     for vote in all_votes_ids:
@@ -320,7 +303,6 @@ class VoteParser(PdfParser):
 
                 ballots[person_id] = {
                     'personvoter': person_id,
-                    #'orgvoter': person_party,
                     'option': option,
                     'session': self.session_id,
                     'vote': vote_id
@@ -329,7 +311,13 @@ class VoteParser(PdfParser):
         if ballots:
             self.patch_result(ballots, vote_id, motion_id)
             self.data_storage.set_ballots(list(ballots.values()))
+            self.validate_ballots(ballots, vote_id, self.start_time)
             ballots = {}
+
+    def validate_ballots(self, ballots, vote_id, date):
+        num_of_members = len(self.data_storage.get_members_on_date(date, int(self.data_storage.main_org_id)))
+        if len(list(ballots.values())) != num_of_members:
+            self.data_storage.patch_vote(vote_id, {'needs_editing': True})
 
     def patch_result(self, ballots, vote_id, motion_id):
         options = Counter([ballot['option'] for ballot in ballots.values()])
