@@ -116,6 +116,4 @@ class SpeechesParser(DocxParser):
     def skip_line(self, text):
         if text.startswith('------------------'):
             return True
-        elif text.startswith('... ///'):
-            return True
         return False
