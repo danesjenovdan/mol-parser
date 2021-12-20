@@ -57,6 +57,7 @@ class SessionsSpider(scrapy.Spider):
         agenda_names = [section_name]
         if self.parse_type in ['votes', None]:
             for child in response.css('div.inner>*'):
+                # parse votes from agneda items
                 if parse_agenda_item_vote:
                     links = []
 
@@ -110,9 +111,33 @@ class SessionsSpider(scrapy.Spider):
             agenda_item = None
         return votes, agenda_item
 
+    # parse vote which is positioned in header
+    def parse_voting_for_guest_free(self, response, basic_vote_data):
+        votes = {}
+        header_links = response.css('div.inner>*')[7].css('a')
+        if len(header_links) > 1:
+            for link in header_links:
+                if link.css('::text').extract_first() == 'Glasovanje, da seja poteka brez navzočnosti občanov':
+                    vote_link = link.css('::attr(href)').extract_first()
+                    order = self.initiate_vote_or_link(
+                        votes,
+                        [],
+                        'Glasovanje, da seja poteka brez navzočnosti občanov',
+                        vote_link,
+                        [],
+                        ['Glasovanje, da seja poteka brez navzočnosti občanov'],
+                        basic_vote_data,
+                        '',
+                        -1,
+                        -2,
+                    )
+        return votes
+
+
     def parse_session(self, response):
         session_name = response.css(".header-holder h1::text").extract_first()
         session_notes = {}
+        votes = {}
 
         for doc in response.css('ul.attached-files')[-1].css('a'):
             if 'Zapisnik' in doc.css('::text').extract_first():
@@ -145,6 +170,12 @@ class SessionsSpider(scrapy.Spider):
             'date': response.meta["date"],
             'time': response.meta["time"],
         }
+
+        votes = self.parse_voting_for_guest_free(response, basic_vote_data)
+        for vote in votes.values():
+            vote['agenda_name'] = None
+            vote['links'] = []
+            yield vote
 
         parsed_votes, agenda_item = self.parse_attachment_vote(response, 'Sprejeti dnevni red', -1, session_name, session_notes, basic_vote_data)
         for vote in parsed_votes:
