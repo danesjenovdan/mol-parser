@@ -51,7 +51,8 @@ class SpeechesParser(DocxParser):
         state = ParserState.HEADER
         order = 1
         for paragraph in self.document.paragraphs:
-            text = paragraph.text
+            # text = paragraph.text -> workaround for get text from smarttags
+            text = self.para2text(paragraph)
             if self.skip_line(text):
                 continue
             # if text.startswith('Prehajamo k glasovanju') or state == ParserState.VOTE:
@@ -117,3 +118,7 @@ class SpeechesParser(DocxParser):
         if text.startswith('------------------'):
             return True
         return False
+
+    def para2text(self, p):
+        rs = p._element.xpath('.//w:t')
+        return ''.join([r.text for r in rs])
