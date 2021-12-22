@@ -68,11 +68,6 @@ class SpeechesParser(DocxParser):
                     person_id, added_person = data_storage.get_or_add_person(
                         current_person.strip()
                     )
-                    person_party = self.data_storage.get_membership_of_member_on_date(
-                        person_id,
-                        start_time,
-                        self.data_storage.main_org_id
-                    )
                     results = re.findall(for_text, current_text) + re.findall(against_text, current_text)
                     if len(results) > 0:
                         tags = ['vote']
@@ -85,7 +80,6 @@ class SpeechesParser(DocxParser):
                         'session': session_id,
                         'order': order,
                         'tags': tags,
-                        'party': person_party,
                         'start_time': start_time.isoformat()
                     })
                     order += 1
@@ -103,13 +97,15 @@ class SpeechesParser(DocxParser):
                 tags = ['vote']
             else:
                 tags = []
+            person_id, added_person = data_storage.get_or_add_person(
+                current_person.strip()
+            )
             self.speeches.append({
                 'speaker': person_id,
                 'content': current_text.strip(),
                 'session': session_id,
                 'order': order,
                 'tags': tags,
-                'party': person_party,
                 'start_time': start_time.isoformat()
             })
         self.data_storage.add_speeches(self.speeches)
