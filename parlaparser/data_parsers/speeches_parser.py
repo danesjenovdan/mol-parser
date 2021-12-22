@@ -51,7 +51,8 @@ class SpeechesParser(DocxParser):
         state = ParserState.HEADER
         order = 1
         for paragraph in self.document.paragraphs:
-            text = paragraph.text
+            # text = paragraph.text -> workaround for get text from smarttags
+            text = self.para2text(paragraph)
             if self.skip_line(text):
                 continue
             # if text.startswith('Prehajamo k glasovanju') or state == ParserState.VOTE:
@@ -67,11 +68,6 @@ class SpeechesParser(DocxParser):
                     person_id, added_person = data_storage.get_or_add_person(
                         current_person.strip()
                     )
-                    person_party = self.data_storage.get_membership_of_member_on_date(
-                        person_id,
-                        start_time,
-                        self.data_storage.main_org_id
-                    )
                     results = re.findall(for_text, current_text) + re.findall(against_text, current_text)
                     if len(results) > 0:
                         tags = ['vote']
@@ -84,7 +80,6 @@ class SpeechesParser(DocxParser):
                         'session': session_id,
                         'order': order,
                         'tags': tags,
-                        'party': person_party,
                         'start_time': start_time.isoformat()
                     })
                     order += 1
@@ -102,13 +97,15 @@ class SpeechesParser(DocxParser):
                 tags = ['vote']
             else:
                 tags = []
+            person_id, added_person = data_storage.get_or_add_person(
+                current_person.strip()
+            )
             self.speeches.append({
                 'speaker': person_id,
                 'content': current_text.strip(),
                 'session': session_id,
                 'order': order,
                 'tags': tags,
-                'party': person_party,
                 'start_time': start_time.isoformat()
             })
         self.data_storage.add_speeches(self.speeches)
@@ -117,3 +114,7 @@ class SpeechesParser(DocxParser):
         if text.startswith('------------------'):
             return True
         return False
+
+    def para2text(self, p):
+        rs = p._element.xpath('.//w:t')
+        return ''.join([r.text for r in rs])

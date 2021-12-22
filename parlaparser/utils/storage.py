@@ -211,6 +211,7 @@ class DataStorage(object):
 
     def set_motion(self, data):
         added_motion = self.parladata_api.set_motion(data)
+        self.motions[self.get_motion_key(added_motion)] = added_motion['id']
         return added_motion
 
     def get_or_add_agenda_item(self, data):
