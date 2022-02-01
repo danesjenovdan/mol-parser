@@ -27,7 +27,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: rg.fr-par.scw.cloud/djnd/parlaparser-ljubljana:${{ github.sha }}
+          tags: |
+            rg.fr-par.scw.cloud/djnd/parlaparser-ljubljana:${{ github.sha }}
+            rg.fr-par.scw.cloud/djnd/parlaparser-ljubljana:latest
       -
         name: Update image versions in kustomize/kustomization.yaml
         run: |

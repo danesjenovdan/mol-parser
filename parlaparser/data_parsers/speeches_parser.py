@@ -73,10 +73,12 @@ class SpeechesParser(DocxParser):
                         tags = ['vote']
                     else:
                         tags = []
+
+                    fixed_text  = self.fix_speech_content(current_text)
                     logging.debug(tags)
                     self.speeches.append({
                         'speaker': person_id,
-                        'content': current_text.strip(),
+                        'content': fixed_text.strip(),
                         'session': session_id,
                         'order': order,
                         'tags': tags,
@@ -118,3 +120,10 @@ class SpeechesParser(DocxParser):
     def para2text(self, p):
         rs = p._element.xpath('.//w:t')
         return ''.join([r.text for r in rs])
+
+    def fix_speech_content(self, content):
+        repalce_chars = [('«', '"'), ('»', '"')]
+        for org_char, rapcece_char  in repalce_chars:
+            content = content.replace(org_char, rapcece_char)
+
+        return content
