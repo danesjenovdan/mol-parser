@@ -117,6 +117,9 @@ class ParladataApi(object):
     def set_org_membership(self, data):
         return self._set_object('organization-memberships', data).json()
 
+    def set_legislation_consideration(self, data):
+        return self._set_object('legislation-consideration', data).json()
+
     def set_session(self, data):
         return self._set_object('sessions', data).json()
 

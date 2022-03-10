@@ -180,6 +180,13 @@ class VoteParser(PdfParser):
                             'classification': self.data_storage.legislation_classification['decree'],
                         })
                         legislation_id = legislation_obj['id']
+                        self.data_storage.set_legislation_consideration({
+                            'session': self.session_id,
+                            'timestamp': self.start_time.isoformat(),
+                            'procedure_phase': 1,
+                            'legislation': legislation_id,
+                            'organization': self.data_storage.main_org_id,
+                        })
                         legislation_added = True
 
                     if legislation_id:
