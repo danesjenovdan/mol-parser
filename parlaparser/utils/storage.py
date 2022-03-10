@@ -234,6 +234,10 @@ class DataStorage(object):
         added_vote = self.parladata_api.set_vote(data)
         return added_vote
 
+    def set_legislation_consideration(self, data):
+        added_legislation_consideration = self.parladata_api.set_legislation_consideration(data)
+        return added_legislation_consideration
+
     def set_question(self, data):
         added_question = self.parladata_api.set_question(data)
         return added_question
