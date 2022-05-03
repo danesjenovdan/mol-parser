@@ -95,7 +95,7 @@ class VoteParser(PdfParser):
                 continue
             if state == ParserState.META:
                 if line.startswith('DNE'):
-                    date_str = line.split(" ")[2]   
+                    date_str = line.split(" ")[2]
                 if line.startswith('URA'):
                     time_str = line.split(" : ")[1]
                     start_time = datetime.strptime(f'{date_str} {time_str}', '%d.%m.%Y %X')
@@ -123,7 +123,8 @@ class VoteParser(PdfParser):
                 if line.strip()[1]==')':
                     line = line.strip()[2:].strip()
                 if line.strip().startswith('AMANDMA'):
-                    title = ''
+                    if not title.strip().startswith('AMANDMA'):
+                        title = ''
                 if line.strip().startswith('SKUPAJ'):
                     state = ParserState.RESULT
 
@@ -146,8 +147,9 @@ class VoteParser(PdfParser):
                         'session': self.session_id,
                         'needs_editing': False,
                     }
+                    print(self.data_storage.get_motion_key(motion))
                     if self.data_storage.check_if_motion_is_parsed(motion):
-                        logging.info('vote is already parsed')
+                        logging.warning('vote is already parsed')
                         break
                 if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('PREDLOGU SKLEPA') or line.strip().startswith('PREDLOG POSTOPKOVNEGA PREDLOGA'):
                     title = ''

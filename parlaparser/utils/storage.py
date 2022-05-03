@@ -59,7 +59,7 @@ class DataStorage(object):
         logging.warning(f'loaded {len(self.sessions)} sessions')
 
         for session in self.sessions.values():
-            speeches = self.parladata_api.get_speeches(session=session)
+            speeches = self.parladata_api.get_speech_count(id=session)
             if speeches:
                 self.sessions_with_speeches.append(session)
 
