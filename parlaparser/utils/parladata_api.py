@@ -86,6 +86,14 @@ class ParladataApi(object):
     def get_memberships(self):
         return self._get_objects('person-memberships/?role=voter')
 
+    def get_speech_count(self, id):
+        url = f'{self.base_url}/speeches/count/?session={id}'
+        data = requests.get(url).json()
+        if 'count' in data.keys():
+            return data['count']
+        else:
+            return 0
+
     def get_speeches(self, id='', session=None):
         query = []
         if session:
