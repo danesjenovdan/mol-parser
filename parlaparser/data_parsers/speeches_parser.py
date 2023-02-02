@@ -62,7 +62,7 @@ class SpeechesParser(DocxParser):
             #         state = ParserState.VOTE
             #     continue
 
-            if text.startswith('GOSPOD') or text.startswith('GOSPA') and state in [ParserState.HEADER, ParserState.CONTENT]:
+            if text.startswith('GOSPOD') or text.startswith('GOPOD') or text.startswith('GOSPA') and state in [ParserState.HEADER, ParserState.CONTENT]:
 
                 if state == ParserState.CONTENT:
                     person_id, added_person = data_storage.get_or_add_person(
