@@ -120,7 +120,7 @@ class VoteParser(PdfParser):
             elif state == ParserState.TITLE:
                 # TODO do this better
                 #if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ') or line.strip().startswith('PREDLOGU SKLEPA'):
-                if line.strip()[1]==')':
+                if len(line.strip()) > 1 and line.strip()[1]==')':
                     line = line.strip()[2:].strip()
                 if line.strip().startswith('AMANDMA'):
                     if not title.strip().startswith('AMANDMA'):

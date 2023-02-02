@@ -19,10 +19,11 @@ class SessionsSpider(scrapy.Spider):
     base_url = 'https://www.ljubljana.si'
     start_urls = ['https://www.ljubljana.si/sl/mestni-svet/seje-mestnega-sveta/']
 
-    def __init__(self, parse_name=None, parse_type=None, *args,**kwargs):
+    def __init__(self, parse_name=None, agenda_name=None, parse_type=None, *args,**kwargs):
         super().__init__(*args, **kwargs)
         self.parse_name = parse_name
         self.parse_type = parse_type
+        self.agenda_name = agenda_name
         self.find_enumerating = r'\b(.)\)'
         self.find_range_enumerating = r'\b(.)\) do \b(.)\)'
         self.words_orders = ['a', 'b', 'c', 'č', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
@@ -183,6 +184,8 @@ class SessionsSpider(scrapy.Spider):
 
         for li in response.css(".list-agenda>li"):
             agenda_name = li.css('.file-list-header h3.file-list-open-h3::text').extract_first()
+            if self.agenda_name and self.agenda_name != agenda_name:
+                continue
             # get agenda_names: is using for a) b) c)....
             agenda_names = li.css('.file-list-header h3.file-list-open-h3::text').extract()
             agenda_names = list(map(str.strip, agenda_names))
