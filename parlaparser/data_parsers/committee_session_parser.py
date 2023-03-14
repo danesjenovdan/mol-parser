@@ -46,6 +46,7 @@ class CommitteeSessionParser(BaseParser):
             'organization': working_body_id,
             'organizations': [working_body_id],
             'start_time': start_time.isoformat(),
+            'mandate': self.data_storage.mandate_id
         })
 
         if added:

@@ -99,7 +99,7 @@ class DataStorage(object):
             self.memberships[membership['organization']][membership['member']].append(membership)
 
     def get_session_key(self, session):
-        return f'{session["name"]}_{"_".join(list(map(str, session["organizations"])))}'
+        return f'{session["name"]}_{"_".join(list(map(str, session["organizations"])))}_{session["mandate"]}'
 
     def get_vote_key(self, vote):
         if vote['name'] == None:
