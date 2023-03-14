@@ -22,7 +22,8 @@ class QuestionParser(BaseParser):
         session_id, added = self.data_storage.add_or_get_session({
             'name': data['session_name'],
             'organizations': [self.data_storage.main_org_id],
-            'start_time': start_time.isoformat()
+            'start_time': start_time.isoformat(),
+            'mandate': self.data_storage.mandate_id
         })
         if added and 'session_notes' in data.keys():
             # add notes
