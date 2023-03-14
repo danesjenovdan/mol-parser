@@ -18,11 +18,11 @@ spec:
               - name: DJANGO_SETTINGS_MODULE
                 value: parladata_project.settings.k8s
               - name: PARSER_MANDATE_START_DATE
-                value: '2018-12-15'
+                value: '2022-12-11'
               - name: PARSER_MAIN_ORG_ID
-                value: '1'
+                value: '48'
               - name: PARSER_MANDATE_ID
-                value: '1'
+                value: '2'
             envFrom:
               - secretRef:
                   name: parladata-credentials
