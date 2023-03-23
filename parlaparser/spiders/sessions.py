@@ -136,7 +136,7 @@ class SessionsSpider(scrapy.Spider):
 
 
     def parse_session(self, response):
-        session_name = response.css(".header-holder h1::text").extract_first()
+        session_name = response.css(".header-holder h1::text").extract_first().strip()
         session_notes = {}
         votes = {}
 
