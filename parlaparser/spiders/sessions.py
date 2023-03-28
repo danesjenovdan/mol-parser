@@ -39,6 +39,7 @@ class SessionsSpider(scrapy.Spider):
             if self.parse_name:
                 logging.warning(f'{self.parse_name} {self.name}')
                 if name != self.parse_name:
+                    print(f'pass session {name} because {self.parse_name}')
                     continue
 
 
@@ -113,25 +114,42 @@ class SessionsSpider(scrapy.Spider):
         return votes, agenda_item
 
     # parse vote which is positioned in header
-    def parse_voting_for_guest_free(self, response, basic_vote_data):
+    def parse_voting_for_guest_free_and_presession_votes(self, response, basic_vote_data):
         votes = {}
         header_links = response.css('div.inner>*')[7].css('a')
-        if len(header_links) > 1:
-            for link in header_links:
-                if link.css('::text').extract_first() == 'Glasovanje, da seja poteka brez navzočnosti občanov':
-                    vote_link = link.css('::attr(href)').extract_first()
-                    order = self.initiate_vote_or_link(
-                        votes,
-                        [],
-                        'Glasovanje, da seja poteka brez navzočnosti občanov',
-                        vote_link,
-                        [],
-                        ['Glasovanje, da seja poteka brez navzočnosti občanov'],
-                        basic_vote_data,
-                        '',
-                        -1,
-                        -2,
-                    )
+        for link in header_links:
+            try:
+                link_text = link.css('::text').extract_first()
+            except:
+                link_text = ''
+            if link_text == 'Glasovanje, da seja poteka brez navzočnosti občanov':
+                vote_link = link.css('::attr(href)').extract_first()
+                order = self.initiate_vote_or_link(
+                    votes,
+                    [],
+                    'Glasovanje, da seja poteka brez navzočnosti občanov',
+                    vote_link,
+                    [],
+                    ['Glasovanje, da seja poteka brez navzočnosti občanov'],
+                    basic_vote_data,
+                    '',
+                    -1,
+                    -2,
+                )
+            elif link_text in ['Glasovanje', 'Glasovanji', 'Glasovanja']:
+                vote_link = link.css('::attr(href)').extract_first()
+                order = self.initiate_vote_or_link(
+                    votes,
+                    [],
+                    'Glasovanje',
+                    vote_link,
+                    [],
+                    ['Pred prvo točko dnevnega reda'],
+                    basic_vote_data,
+                    '',
+                    -2,
+                    -3,
+                )
         return votes
 
 
@@ -139,6 +157,7 @@ class SessionsSpider(scrapy.Spider):
         session_name = response.css(".header-holder h1::text").extract_first().strip()
         session_notes = {}
         votes = {}
+        print(session_name)
 
         for doc in response.css('ul.attached-files')[-1].css('a'):
             if 'Zapisnik' in doc.css('::text').extract_first():
@@ -167,12 +186,12 @@ class SessionsSpider(scrapy.Spider):
 
         basic_vote_data = {
             'session_notes': session_notes,
-            'session_name': session_name,
+            'session_name': session_name.strip(),
             'date': response.meta["date"],
             'time': response.meta["time"],
         }
 
-        votes = self.parse_voting_for_guest_free(response, basic_vote_data)
+        votes = self.parse_voting_for_guest_free_and_presession_votes(response, basic_vote_data)
         for vote in votes.values():
             vote['agenda_name'] = None
             vote['links'] = []
@@ -309,7 +328,7 @@ class SessionsSpider(scrapy.Spider):
             else:
                 enum = 0
 
-            agenda_name = agenda_names[0]
+            agenda_name = agenda_names[0] if agenda_names else ''
 
             # if agenda item is enumerated, then try to find correct name
             if link_text[1] == ')':
@@ -317,7 +336,7 @@ class SessionsSpider(scrapy.Spider):
                     if temp_agenda_name and temp_agenda_name[0] == link_text[0]:
                         agenda_name = temp_agenda_name
 
-            if li_order:
+            if li_order and agenda_name:
                 full_agenda_name = f'{li_order}. {agenda_name}'
             else:
                 full_agenda_name = agenda_name
