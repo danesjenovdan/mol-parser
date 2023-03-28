@@ -20,7 +20,7 @@ class QuestionParser(BaseParser):
 
 
         session_id, added = self.data_storage.add_or_get_session({
-            'name': data['session_name'],
+            'name': data['session_name'].strip(),
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat(),
             'mandate': self.data_storage.mandate_id

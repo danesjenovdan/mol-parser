@@ -83,6 +83,8 @@ class VoteParser(PdfParser):
         motion = {}
         vote = {}
 
+        self.items = []
+
         self.vote_count = 0
 
         legislation_id = None
@@ -90,6 +92,10 @@ class VoteParser(PdfParser):
         legislation_added = False
 
         lines = ''.join(self.pdf).split('\n')
+        item = {
+            'links': []
+        }
+        revoted = False
         ballots = {}
         for line in lines:
             if not line.strip():
@@ -106,12 +112,18 @@ class VoteParser(PdfParser):
                     pass
                 elif 'PREDLOG SKLEPA' in line or 'PREDLOGU SKLEPA' in line or 'PREDLOG UGOTOVITVENEGA SKLEPA:' in line or 'PREDLOG POSTOPKOVNEGA PREDLOGA:' in line:
                     # reset tilte and go to title mode
+                    if 'PONOVITEV GLASOVANJA' in line or 'PONOVNO GLASOVANJE' in line:
+                        revoted = True
                     state = ParserState.TITLE
                     title = ''
                 elif 'AMANDMA' in line:
                     state = ParserState.TITLE
+                    if 'PONOVITEV GLASOVANJA' in line or 'PONOVNO GLASOVANJE' in line:
+                        revoted = True
                     title = f'{line.strip()}'
                 elif line.strip().startswith('SKUPAJ'):
+                    if 'PONOVITEV GLASOVANJA' in line or 'PONOVNO GLASOVANJE' in line:
+                        revoted = True
                     state = ParserState.TITLE
                 else:
                     title = f'{title} {line.strip()}'
@@ -128,7 +140,6 @@ class VoteParser(PdfParser):
                         title = ''
                 if line.strip().startswith('SKUPAJ'):
                     state = ParserState.RESULT
-
                     motion = {
                         'title': title,
                         'text': title,
@@ -176,45 +187,37 @@ class VoteParser(PdfParser):
                         pass
 
                     elif 'PREDLOG ODLOKA' in pre_title:
-                        legislation_obj = self.data_storage.set_legislation({
+                        item['law'] = {
                             'text': pre_title,
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
                             'classification': self.data_storage.legislation_classification['decree'],
                             'mandate_id': self.data_storage.mandate_id
-                        })
-                        legislation_id = legislation_obj['id']
-                        self.data_storage.set_legislation_consideration({
+                        }
+                        item['consideration'] = {
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
                             'procedure_phase': 1,
-                            'legislation': legislation_id,
                             'organization': self.data_storage.main_org_id,
-                        })
+                        }
                         legislation_added = True
 
-                    if legislation_id:
-                        motion['law'] = legislation_id
 
-                    motion_obj = self.data_storage.set_motion(motion)
-                    vote['motion'] = motion_obj['id']
+                    item['revoted'] = revoted
+                    revoted = False
+                    item['motion'] = motion
                     vote['result'] = result
-                    vote_obj = self.data_storage.set_vote(vote)
-                    vote_id = int(vote_obj['id'])
-                    all_votes_ids.append(vote_id)
-                    motion_id = motion_obj['id']
+                    item['vote'] = vote
+
                     self.vote_count += 1
                     for link in data['links']:
-                        # save links
+                        # add links
                         link_data = {
-                            'motion': motion_id,
                             'url': link['url'],
                             'name': link['title'],
                             'tags': [link['tag']]
                         }
-                        if 'law' in motion.keys():
-                            link_data.update({'law': motion['law']})
-                        self.data_storage.set_link(link_data)
+                        item['links'].append(link_data)
 
                     logging.warning(vote)
                     logging.warning('......:::::::SAVE:::::......')
@@ -233,11 +236,14 @@ class VoteParser(PdfParser):
                     # Save ballots and set parser state to META
                     state = ParserState.META
 
-                    self.patch_result(ballots, vote_id, motion_id)
-                    self.validate_ballots(ballots, vote_id, self.start_time)
-                    self.data_storage.set_ballots(list(ballots.values()))
+                    item['ballots'] = ballots
+
                     title = ''
                     ballots = {}
+                    self.items.append(item)
+                    item = {
+                        'links': []
+                    }
                     continue
 
                 re_ballots = re.findall(find_vote, line)
@@ -275,9 +281,14 @@ class VoteParser(PdfParser):
                 if line.strip().startswith('GLASOVANJE MESTNEGA SVETA MESTNE OBČINE LJUBLJANA') or re.findall(find_paging, line):
                     state = ParserState.META
 
-                    self.patch_result(ballots, vote_id, motion_id)
+                    item['ballots'] = ballots
 
-                    self.data_storage.set_ballots(list(ballots.values()))
+                    self.items.append(item)
+                    item = {
+                        'links': []
+                    }
+
+
                     title = ''
                     ballots = {}
                     self.vote_count = 0
@@ -304,9 +315,14 @@ class VoteParser(PdfParser):
                     logging.warning('....:::::UNPREDICTED OPTION:::::......')
                     logging.warning(line)
                     state = ParserState.META
-                    self.data_storage.set_ballots(list(ballots.values()))
-                    self.validate_ballots(ballots, vote_id, self.start_time)
+
                     ballots = {}
+                    self.items.append(item)
+                    item = {
+                        'links': []
+                    }
+
+
                     # set vote as needs editing
                     for vote in all_votes_ids:
                         self.data_storage.patch_vote(vote, {'needs_editing': True})
@@ -320,10 +336,47 @@ class VoteParser(PdfParser):
                 }
 
         if ballots:
-            self.patch_result(ballots, vote_id, motion_id)
-            self.data_storage.set_ballots(list(ballots.values()))
-            self.validate_ballots(ballots, vote_id, self.start_time)
+            item['ballots'] = ballots
+            self.items.append(item)
             ballots = {}
+
+        self.save_motions()
+
+    def save_motions(self):
+        # delete repeated voting
+        revoted_names = []
+        for item in self.items:
+            if item['revoted']:
+                revoted_names.append(item['motion']['title'])
+
+        for item in self.items:
+            if item['motion']['title'] in revoted_names and not item['revoted']:
+                # skip vote if has repeated voting
+                continue
+            if 'law' in item.keys():
+                legislation_obj = self.data_storage.set_legislation(item['law'])
+                legislation_id = legislation_obj['id']
+                item['consideration']['legislation'] = legislation_id
+                self.data_storage.set_legislation_consideration(item['consideration'])
+
+            motion_obj = self.data_storage.set_motion(item['motion'])
+            motion_id = motion_obj['id']
+            item['vote']['motion'] = motion_id
+            vote_obj = self.data_storage.set_vote(item['vote'])
+            vote_id = int(vote_obj['id'])
+
+            for person_id in item['ballots'].keys():
+                item['ballots'][person_id]['vote'] = vote_id
+
+            self.patch_result(item['ballots'], vote_id, motion_id)
+            self.data_storage.set_ballots(list(item['ballots'].values()))
+            self.validate_ballots(item['ballots'], vote_id, self.start_time)
+
+            for link in item['links']:
+                link.update({'motion': motion_id})
+                if 'law' in item.keys():
+                    link.update({'law': legislation_id})
+                self.data_storage.set_link(link)
 
     def validate_ballots(self, ballots, vote_id, date):
         num_of_members = len(self.data_storage.get_members_on_date(date, int(self.data_storage.main_org_id)))
