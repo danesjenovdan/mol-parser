@@ -192,7 +192,7 @@ class VoteParser(PdfParser):
                             'session': self.session_id,
                             'timestamp': self.start_time.isoformat(),
                             'classification': self.data_storage.legislation_classification['decree'],
-                            'mandate_id': self.data_storage.mandate_id
+                            'mandate': self.data_storage.mandate_id
                         }
                         item['consideration'] = {
                             'session': self.session_id,
