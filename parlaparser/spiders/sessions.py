@@ -116,7 +116,7 @@ class SessionsSpider(scrapy.Spider):
     # parse vote which is positioned in header
     def parse_voting_for_guest_free_and_presession_votes(self, response, basic_vote_data):
         votes = {}
-        header_links = response.css('div.inner>*')[7].css('a')
+        header_links = response.css('div.inner>p').css('a')
         for link in header_links:
             try:
                 link_text = link.css('::text').extract_first()
