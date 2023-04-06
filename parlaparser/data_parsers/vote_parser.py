@@ -112,17 +112,17 @@ class VoteParser(PdfParser):
                     pass
                 elif 'PREDLOG SKLEPA' in line or 'PREDLOGU SKLEPA' in line or 'PREDLOG UGOTOVITVENEGA SKLEPA:' in line or 'PREDLOG POSTOPKOVNEGA PREDLOGA:' in line:
                     # reset tilte and go to title mode
-                    if 'PONOVITEV GLASOVANJA' in line or 'PONOVNO GLASOVANJE' in line:
+                    if 'ponovitev glasovanja' in line.lower() or 'ponovno glasovanje' in line.lower():
                         revoted = True
                     state = ParserState.TITLE
                     title = ''
                 elif 'AMANDMA' in line:
                     state = ParserState.TITLE
-                    if 'PONOVITEV GLASOVANJA' in line or 'PONOVNO GLASOVANJE' in line:
+                    if 'ponovitev glasovanja' in line.lower() or 'ponovno glasovanje' in line.lower():
                         revoted = True
                     title = f'{line.strip()}'
                 elif line.strip().startswith('SKUPAJ'):
-                    if 'PONOVITEV GLASOVANJA' in line or 'PONOVNO GLASOVANJE' in line:
+                    if 'ponovitev glasovanja' in line.lower() or 'ponovno glasovanje' in line.lower():
                         revoted = True
                     state = ParserState.TITLE
                 else:
