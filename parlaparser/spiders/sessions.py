@@ -159,12 +159,13 @@ class SessionsSpider(scrapy.Spider):
         votes = {}
         print(session_name)
 
-        for doc in response.css('ul.attached-files')[-1].css('a'):
-            if 'Zapisnik' in doc.css('::text').extract_first():
-                session_notes = {
-                    'url': f'{self.base_url}{doc.css("::attr(href)").extract_first()}',
-                    'title': doc.css('::text').extract_first()
-                }
+        if len(response.css('ul.attached-files')) > 1:
+            for doc in response.css('ul.attached-files')[-1].css('a'):
+                if 'Zapisnik' in doc.css('::text').extract_first():
+                    session_notes = {
+                        'url': f'{self.base_url}{doc.css("::attr(href)").extract_first()}',
+                        'title': doc.css('::text').extract_first()
+                    }
 
         if self.parse_type in ['speeches', None]:
             docx_files = response.css(".inner .attached-files .docx")
@@ -258,10 +259,13 @@ class SessionsSpider(scrapy.Spider):
                 if is_added_agenda_item == False and len(agenda_names) > 1:
                     agenda_names_fixed = []
                     for item in agenda_names:
-                        if item[1] != ")":
+                        if item and item[1] != ")":
                             agenda_names_fixed[-1] += f' {item}'
-                        else:
+                        elif item:
                             agenda_names_fixed.append(item)
+                        else:
+                            continue
+
                     for agenda_name in agenda_names_fixed:
                         current_enum = agenda_name[0]
                         agenda_links = []
