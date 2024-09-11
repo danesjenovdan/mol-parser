@@ -7,8 +7,7 @@ class CommitteeParser(BaseParser):
         super().__init__(data_storage)
         data = data
 
-        organization_id, added_org = data_storage.get_or_add_organization(
-            data['org_name'],
+        organization = data_storage.organization_storage.get_or_add_object(
             {
                 'name': data['org_name'],
                 'parser_names': data['org_name'],
@@ -16,18 +15,17 @@ class CommitteeParser(BaseParser):
             }
         )
 
-        person_id, added_person = data_storage.get_or_add_person(
-            data['name'],
+        person = data_storage.get_or_add_person(
             {
                 'name': data['name'],
                 'parser_names': data['name']
             }
         )
         
-        data_storage.add_membership(
+        data_storage.memberships_storage.get_or_add_object(
             {
-                'member': person_id,
-                'organization': organization_id,
+                'member': person.id,
+                'organization': organization.id,
                 'on_behalf_of': None,
                 'start_time': data_storage.mandate_start_time.isoformat(),
                 'role': data['role'] if data['role'] else 'member',

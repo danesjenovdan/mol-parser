@@ -19,30 +19,29 @@ class QuestionParser(BaseParser):
         self.start_time = start_time
 
 
-        session_id, added = self.data_storage.add_or_get_session({
+        session = self.data_storage.session_storage.get_or_add_object({
             'name': data['session_name'].strip(),
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat(),
             'mandate': self.data_storage.mandate_id
         })
-        if added and 'session_notes' in data.keys():
+        if session.is_new and data.get('session_notes', {}):
             # add notes
             link_data = {
-                'session': session_id,
+                'session': session.id,
                 'url': data['session_notes']['url'],
                 'name': data['session_notes']['title'],
             }
-            self.data_storage.set_link(link_data)
+            self.data_storage.parladata_api.links.set(link_data)
 
-        self.session_id = session_id
+        self.session = session
 
-        agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
+        agenda_item = session.agenda_items_storage.get_or_add_object({
             'name': data['agenda_name'].strip(),
             'datetime': start_time.isoformat(),
-            'session': session_id,
+            'session': session.id,
             'order': data['order']
         })
-        self.agenda_item_id = agenda_item_id
 
         url = data['url']
         text = data['text']
@@ -75,21 +74,20 @@ class QuestionParser(BaseParser):
 
         question_data = {
             'title': question_text,
-            'session': session_id,
+            'session': session.id,
+            'mandate': self.data_storage.mandate_id,
             'timestamp': self.start_time.isoformat(),
             'type_of_question': question_type
         }
-        if self.data_storage.check_if_question_is_parsed(question_data):
+        if self.data_storage.question_storage.check_if_question_is_parsed(question_data):
             return
         question_data.update(author)
 
-        question = self.data_storage.set_question(question_data)
+        question = self.data_storage.question_storage.get_or_add_object(question_data)
 
-        question_id = question['id']
-
-        self.data_storage.set_link({
-            'agenda_item': self.agenda_item_id,
-            'question': question_id,
+        self.data_storage.parladata_api.links.set({
+            'agenda_item': agenda_item.id,
+            'question': question.id,
             'url': f'{settings.BASE_URL}{url}',
             'name': f'{question_slo_type}{":" if question_slo_type else ""} {question_text}'
         })
@@ -110,24 +108,25 @@ class QuestionParser(BaseParser):
             #org_name = mixed_text.split('Svetniškega kluba')[1].strip()
             org_name = re.split(r'\wvetniškega klub.', mixed_text.lower())[1].strip()
             if org_name:
-                organization_id, added_org = self.data_storage.get_or_add_organization(
-                    org_name,
+                organization = self.data_storage.organization_storage.get_or_add_object(
                     {
                         'name': org_name,
                         'parser_names': org_name,
                         'classification': 'pg'
                     }
                 )
-                return {'organization_authors': [organization_id]}
+                return {'organization_authors': [organization.id]}
             else:
                 return {}
 
         if person_name:
-            person_id, added_person = self.data_storage.get_or_add_person(
-                person_name,
+            person = self.data_storage.people_storage.get_or_add_object(
+                {
+                    "name": person_name
+                },
                 name_type='genitive'
             )
         else:
             logging.debug(f'Cannot find peson name: {mixed_text}')
             raise Exception(f'Cannot find peson name: {mixed_text}')
-        return {'person_authors': [person_id]}
+        return {'person_authors': [person.id]}

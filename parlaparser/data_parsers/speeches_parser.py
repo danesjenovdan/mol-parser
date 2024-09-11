@@ -26,23 +26,23 @@ class SpeechesParser(DocxParser):
             minutes=int(data['time'].split(':')[1]))
 
 
-        session_id, added = self.data_storage.add_or_get_session({
+        session = data_storage.session_storage.get_or_add_object({
             'name': data['session_name'],
             'organization': self.data_storage.main_org_id,
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat(),
             'mandate': self.data_storage.mandate_id
         })
-        if added and 'session_notes' in data.keys():
+        if session.is_new and data.get("session_notes", {}):
             # add notes
             link_data = {
-                'session': session_id,
+                'session': session.id,
                 'url': data['session_notes']['url'],
                 'name': data['session_notes']['title'],
             }
-            self.data_storage.set_link(link_data)
+            data_storage.parladata_api.links.set(link_data)
 
-        if session_id in self.data_storage.sessions_with_speeches:
+        if session.get_speech_count() > 0:
             logging.warning('Speeches of this session was already parsed')
             return
 
@@ -66,9 +66,9 @@ class SpeechesParser(DocxParser):
             if text.startswith('GOSPOD') or text.startswith('GOPOD') or text.startswith('GOSPA') and state in [ParserState.HEADER, ParserState.CONTENT]:
 
                 if state == ParserState.CONTENT:
-                    person_id, added_person = data_storage.get_or_add_person(
-                        current_person.strip()
-                    )
+                    person = data_storage.people_storage.get_or_add_object({
+                        "name": current_person.strip()
+                    })
                     results = re.findall(for_text, current_text) + re.findall(against_text, current_text)
                     if len(results) > 0:
                         tags = ['vote']
@@ -78,9 +78,9 @@ class SpeechesParser(DocxParser):
                     fixed_text  = self.fix_speech_content(current_text)
                     logging.debug(tags)
                     self.speeches.append({
-                        'speaker': person_id,
+                        'speaker': person.id,
                         'content': fixed_text.strip(),
-                        'session': session_id,
+                        'session': session.id,
                         'order': order,
                         'tags': tags,
                         'start_time': start_time.isoformat()
@@ -100,18 +100,18 @@ class SpeechesParser(DocxParser):
                 tags = ['vote']
             else:
                 tags = []
-            person_id, added_person = data_storage.get_or_add_person(
-                current_person.strip()
-            )
+            person = data_storage.people_storage.get_or_add_object({
+                "name": current_person.strip()
+            })
             self.speeches.append({
-                'speaker': person_id,
+                'speaker': person.id,
                 'content': current_text.strip(),
-                'session': session_id,
+                'session': session.id,
                 'order': order,
                 'tags': tags,
                 'start_time': start_time.isoformat()
             })
-        self.data_storage.add_speeches(self.speeches)
+        session.add_speeches(self.speeches)
 
     def skip_line(self, text):
         if text.startswith('------------------'):

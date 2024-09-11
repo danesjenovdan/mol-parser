@@ -19,36 +19,34 @@ class AgendaItemParser(BaseParser):
         self.start_time = start_time
 
 
-        session_id, added = self.data_storage.add_or_get_session({
+        session = self.data_storage.session_storage.get_or_add_object({
             'name': data['session_name'],
             'organizations': [self.data_storage.main_org_id],
             'start_time': start_time.isoformat(),
             'mandate': self.data_storage.mandate_id
         })
-        if added and 'session_notes' in data.keys():
+        if session.is_new and data.get("session_notes", {}):
             # add notes
             link_data = {
-                'session': session_id,
+                'session': session.id,
                 'url': data['session_notes']['url'],
                 'name': data['session_notes']['title'],
             }
             self.data_storage.set_link(link_data)
 
-        self.session_id = session_id
-
-        agenda_item_id, added = self.data_storage.get_or_add_agenda_item({
+        agenda_item = session.agenda_items_storage.get_or_add_object({
             'name': data['agenda_name'].strip(),
             'datetime': start_time.isoformat(),
-            'session': session_id,
+            'session': session.id,
             'order': data['order']
         })
-        if added:
+        if agenda_item.is_new:
             for link in data['links']:
                 # save links
                 link_data = {
-                    'agenda_item': agenda_item_id,
+                    'agenda_item': agenda_item.id,
                     'url': link['url'],
                     'name': link['title'],
                     'tags': [link['tag']]
                 }
-                self.data_storage.set_link(link_data)
+                self.data_storage.parladata_api.links.set(link_data)

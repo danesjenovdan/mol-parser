@@ -1,13 +1,3 @@
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-
-
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
-
-from parlaparser.utils.storage import DataStorage
 from parlaparser.data_parsers.person_parser import PersonParser
 from parlaparser.data_parsers.speeches_parser import SpeechesParser
 from parlaparser.data_parsers.vote_parser import VoteParser
@@ -16,6 +6,14 @@ from parlaparser.data_parsers.committee_parser import CommitteeParser
 from parlaparser.data_parsers.agenda_item_parser import AgendaItemParser
 from parlaparser.data_parsers.committee_session_parser import CommitteeSessionParser
 
+from parlaparser.settings import MANDATE, MANDATE_STARTIME, MAIN_ORG_ID, API_URL, API_AUTH
+
+from parladata_base_api.storages.storage import DataStorage
+from parladata_base_api.storages.session_storage import Session
+from parladata_base_api.storages.vote_storage import Motion
+from parladata_base_api.storages.question_storage import Question
+from parladata_base_api.storages.agenda_item_storage import AgendaItem
+
 import logging
 
 
@@ -23,21 +21,28 @@ class ParlaparserPipeline:
     def __init__(self, *args, **kwargs):
         super(ParlaparserPipeline, self).__init__(*args, **kwargs)
         logging.warning('........::Start parser:........')
-        self.data_storage = DataStorage()
+        self.storage = DataStorage(
+            MANDATE, MANDATE_STARTIME, MAIN_ORG_ID, API_URL, API_AUTH[0], API_AUTH[1]
+        )
+
+        Session.keys = ["name", "organizations", "mandate"]
+        Motion.keys = ["session", "datetime"]
+        Question.keys = ["title", "timestamp"]
+        AgendaItem.keys = ["name", "session"]
 
     def process_item(self, item, spider):
         if item['type'] == 'person':
-            PersonParser(item, self.data_storage)
+            PersonParser(item, self.storage)
         elif item['type'] == 'speeches':
-            SpeechesParser(item, self.data_storage)
+            SpeechesParser(item, self.storage)
         elif item['type'] == 'vote':
-            VoteParser(item, self.data_storage)
+            VoteParser(item, self.storage)
         elif item['type'] == 'question':
-            QuestionParser(item, self.data_storage)
+            QuestionParser(item, self.storage)
         elif item['type'] == 'memberships':
-            CommitteeParser(item, self.data_storage)
+            CommitteeParser(item, self.storage)
         elif item['type'] == 'agenda-item':
-            AgendaItemParser(item, self.data_storage)
+            AgendaItemParser(item, self.storage)
         elif item['type'] == 'committee-agenda-items':
-            CommitteeSessionParser(item, self.data_storage)
+            CommitteeSessionParser(item, self.storage)
         return item
