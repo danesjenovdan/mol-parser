@@ -1,10 +1,11 @@
-from parlaparser.data_parsers.base_parser import PdfParser
-from parlaparser import settings
-from enum import Enum
-from collections import Counter
-from datetime import datetime, timedelta
 import logging
 import re
+from collections import Counter
+from datetime import datetime, timedelta
+from enum import Enum
+
+from parlaparser import settings
+from parlaparser.data_parsers.base_parser import PdfParser
 
 
 class ParserState(Enum):
@@ -271,10 +272,8 @@ class VoteParser(PdfParser):
                 for ballot in re_ballots:
                     person_name = ballot[1]
                     option = self.get_option(ballot[2])
-                    person = (
-                        self.data_storage.people_storage.get_or_add_object(
-                            {"name": person_name.strip()}
-                        )
+                    person = self.data_storage.people_storage.get_or_add_object(
+                        {"name": person_name.strip()}
                     )
 
                     # Work around for duplicated person ballots on the same vote
@@ -320,12 +319,10 @@ class VoteParser(PdfParser):
                 try:
                     person_name, option = line.split(":")
 
-                    person = (
-                        self.data_storage.people_storage.get_or_add_object(
-                            {
-                                "name": person_name.strip(),
-                            }
-                        )
+                    person = self.data_storage.people_storage.get_or_add_object(
+                        {
+                            "name": person_name.strip(),
+                        }
                     )
                     remote_options = {
                         "NI GLASOVAL/A": "abstain",
@@ -378,7 +375,9 @@ class VoteParser(PdfParser):
             if "law" in item.keys():
                 legislation = self.data_storage.legislation_storage.set_law(item["law"])
                 item["consideration"]["legislation"] = legislation.id
-                self.data_storage.legislation_storage.set_legislation_consideration(item["consideration"])
+                self.data_storage.legislation_storage.set_legislation_consideration(
+                    item["consideration"]
+                )
 
             motion = self.session.vote_storage.get_or_add_object(item["motion"])
 
@@ -397,7 +396,9 @@ class VoteParser(PdfParser):
 
     def validate_ballots(self, ballots, vote, date):
         num_of_members = 0
-        main_org = self.data_storage.organization_storage.get_organization_by_id(int(self.data_storage.main_org_id))
+        main_org = self.data_storage.organization_storage.get_organization_by_id(
+            int(self.data_storage.main_org_id)
+        )
         for membership in main_org.memberships:
             if membership.role == "voter":
                 if membership.start_time and membership.start_time > date:

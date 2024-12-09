@@ -1,7 +1,7 @@
 editdistance
 ipython
 Scrapy
-pdftotext==2.2.0
+pdftotext
 python-docx
 requests
 parladata-base-api==0.0.20

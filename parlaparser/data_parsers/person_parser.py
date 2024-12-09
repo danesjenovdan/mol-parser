@@ -1,5 +1,6 @@
-from parlaparser.data_parsers.base_parser import BaseParser
 import logging
+
+from parlaparser.data_parsers.base_parser import BaseParser
 
 
 class PersonParser(BaseParser):
