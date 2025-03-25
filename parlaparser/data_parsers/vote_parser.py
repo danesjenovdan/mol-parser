@@ -378,6 +378,7 @@ class VoteParser(PdfParser):
                 self.data_storage.legislation_storage.set_legislation_consideration(
                     item["consideration"]
                 )
+                item["motion"]["law"] = legislation.id
 
             motion = self.session.vote_storage.get_or_add_object(item["motion"])
 
