@@ -39,7 +39,6 @@ class AgendaItemParser(BaseParser):
                 self.data_storage.parladata_api.links.set(link_data)
                 session.added_notes = True
 
-
         agenda_item = session.agenda_items_storage.get_or_add_object(
             {
                 "name": data["agenda_name"].strip(),

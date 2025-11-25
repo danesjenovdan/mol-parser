@@ -29,7 +29,9 @@ class SessionsSpider(scrapy.Spider):
         self.words_orders = ["a", "b", "c", "č", "d", "e", "f", "g", "h", "i", "j", "k"]
 
     def parse(self, response):
-        for li in reversed(response.css("#content-wrapper .list-council-meeting--content li")):
+        for li in reversed(
+            response.css("#content-wrapper .list-council-meeting--content li")
+        ):
             date = li.css("div")[1].css("p::text")[1].extract()
             date = datetime.strptime(date, "%d. %m. %Y")
             if date < settings.MANDATE_STARTIME:
@@ -77,7 +79,9 @@ class SessionsSpider(scrapy.Spider):
                     links = []
 
                     for link in child.css("a"):
-                        link_text, link_url, enums = self.find_links_and_enums(link, "span::text")
+                        link_text, link_url, enums = self.find_links_and_enums(
+                            link, "span::text"
+                        )
 
                         print("a", link_text, link_url, enums)
 
@@ -182,13 +186,13 @@ class SessionsSpider(scrapy.Spider):
                     url = doc.css("::attr(href)").extract_first()
                     if url:
                         session_notes = {
-                            "url": f'{self.base_url}{url}',
+                            "url": f"{self.base_url}{url}",
                             "title": doc.css("span::text").extract_first(),
                         }
                 elif "Magnetogramski zapis" in doc.css("p>span::text").extract_first():
                     speeches_file_url = doc.css("::attr(href)").extract_first()
                     if speeches_file_url.endswith(".docx"):
-                        
+
                         session_notes_object = {
                             "type": f"speeches-docx",
                             "docx_url": f"{self.base_url}{speeches_file_url}",
@@ -204,7 +208,6 @@ class SessionsSpider(scrapy.Spider):
                             "date": response.meta["date"],
                             "time": response.meta["time"],
                         }
-                    
 
             if session_notes:
                 session_notes_object["session_notes"] = session_notes
@@ -219,7 +222,7 @@ class SessionsSpider(scrapy.Spider):
             "date": response.meta["date"],
             "time": response.meta["time"],
         }
-        #import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         votes = self.parse_voting_for_guest_free_and_presession_votes(
             response, basic_vote_data
         )
@@ -240,9 +243,7 @@ class SessionsSpider(scrapy.Spider):
             yield vote
 
         for li in response.css(".council-page--list-published-agendas>li"):
-            agenda_names = li.css(
-                "span.item-title::text"
-            ).extract()
+            agenda_names = li.css("span.item-title::text").extract()
             if self.agenda_name and self.agenda_name != agenda_names:
                 continue
             # get agenda_names: is using for a) b) c)....
@@ -251,7 +252,7 @@ class SessionsSpider(scrapy.Spider):
                 agenda_name = agenda_names[0]
             else:
                 agenda_name = None
-            
+
             is_added_agenda_item = False
             if not agenda_names:
                 raise ValueError("Agenda name is not link. Needs to be fixed.")

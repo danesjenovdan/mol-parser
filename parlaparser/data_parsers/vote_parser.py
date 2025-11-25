@@ -17,6 +17,8 @@ class ParserState(Enum):
     PRE_TITLE = 6
     REMOTE_VOTING_META = 7
     REMOTE_VOTING = 8
+
+
 # vote_url = "https://www.ljubljana.si/assets/Uploads/26.-tocka-Glasovanji.pdf"
 # vp = VoteParser({"session_name": "22. seja Mestnega sveta MOL", "pdf_url": vote_url, "date":datetime.now(), "time": "10:10", "agenda_name": "agenda_name", "order": 1, "links": []},storage)
 class VoteParser(PdfParser):
@@ -84,7 +86,7 @@ class VoteParser(PdfParser):
         find_vote = r"([0-9]{3})\s*(.*?)\s*(\.[N|.]\s+\.[Z|P|\.])"
         vote_line_parse = re.compile(
             rf"(?P<name>[^:]{{1,{max_name_len}}}?):\s*(?P<status>\.*N?\.{{0,2}})\s*(?P<vote>ZA|PROTI|NI GLASOVAL/A)",
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         find_paging = r"([0-9]+\/[0-9]+)"
 
@@ -108,7 +110,7 @@ class VoteParser(PdfParser):
         item = {"links": []}
         revoted = False
         ballots = {}
-        for line in (lines):
+        for line in lines:
             if self.debug:
                 logging.debug(f"STATE: {state} LINE: {line}")
             if not line.strip():
@@ -157,7 +159,7 @@ class VoteParser(PdfParser):
 
             elif state == ParserState.TITLE:
                 # TODO do this better
-                # if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ') or line.strip().startswith('PREDLOGU SKLEPA'):                   
+                # if line.strip().startswith('PREDLOG SKLEPA') or line.strip().startswith('SKUPAJ') or line.strip().startswith('PREDLOGU SKLEPA'):
                 if len(line.strip()) > 1 and line.strip()[1] == ")":
                     line = line.strip()[2:].strip()
                 if line.strip().startswith("AMANDMA"):
@@ -265,9 +267,7 @@ class VoteParser(PdfParser):
                 if line.strip().startswith("GLASOVANJE NA DALJAVO"):
                     state = ParserState.REMOTE_VOTING_META
                     continue
-                if line.strip().startswith(
-                    "MESTNA OBČINA LJUBLJANA"
-                ):
+                if line.strip().startswith("MESTNA OBČINA LJUBLJANA"):
                     # Save ballots and set parser state to META
                     state = ParserState.META
 
@@ -279,7 +279,6 @@ class VoteParser(PdfParser):
                     item = {"links": []}
                     continue
 
-
                 for m in vote_line_parse.finditer(line):
                     person_name = m.group("name").strip()
                     person = self.data_storage.people_storage.get_or_add_object(
@@ -289,7 +288,7 @@ class VoteParser(PdfParser):
                     ballot_option = m.group("vote").upper().strip()
                     option = self.get_option(present, ballot_option)
 
-                     # Work around for duplicated person ballots on the same vote
+                    # Work around for duplicated person ballots on the same vote
                     if person.id in ballots.keys():
                         if ballots[person.id]["option"] == "absent":
                             ballots[person.id]["option"] = option
