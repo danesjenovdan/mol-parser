@@ -29,20 +29,20 @@ class SessionsSpider(scrapy.Spider):
         self.words_orders = ["a", "b", "c", "č", "d", "e", "f", "g", "h", "i", "j", "k"]
 
     def parse(self, response):
-        for li in reversed(response.css("#page-content .ul-table li")):
-            date = li.css("div")[1].css("p::text").extract_first()
+        for li in reversed(response.css("#content-wrapper .list-council-meeting--content li")):
+            date = li.css("div")[1].css("p::text")[1].extract()
             date = datetime.strptime(date, "%d. %m. %Y")
             if date < settings.MANDATE_STARTIME:
                 continue
 
-            name = li.css("div")[0].css("a::text").extract_first()
+            name = li.css("div")[0].css("p>a>strong::text")[0].extract()
             if self.parse_name:
                 logging.warning(f"{self.parse_name} {self.name}")
                 if name != self.parse_name:
                     print(f"pass session {name} because {self.parse_name}")
                     continue
 
-            time = li.css("div")[2].css("p::text").extract_first()
+            time = li.css("div")[2].css("p::text")[1].extract()
             session_url = li.css("div")[0].css("a::attr(href)").extract_first()
             yield scrapy.Request(
                 url=self.base_url + session_url,
@@ -66,13 +66,20 @@ class SessionsSpider(scrapy.Spider):
         links = []
         agenda_names = [section_name]
         if self.parse_type in ["votes", None]:
-            for child in response.css("div.inner>*"):
+            #
+            for child in response.css(".council-page--section"):
+                current_section = child.css("h2::text").extract_first()
+                if current_section == "Dnevni red":
+                    # skip dnevni red
+                    continue
                 # parse votes from agneda items
-                if parse_agenda_item_vote:
+                if current_section == section_name:
                     links = []
 
                     for link in child.css("a"):
-                        link_text, link_url, enums = self.find_links_and_enums(link)
+                        link_text, link_url, enums = self.find_links_and_enums(link, "span::text")
+
+                        print("a", link_text, link_url, enums)
 
                         order = self.initiate_vote_or_link(
                             votes,
@@ -87,7 +94,6 @@ class SessionsSpider(scrapy.Spider):
                             order,
                         )
 
-                current_section = child.css("::text").extract_first()
                 if current_section == section_name:
                     parse_agenda_item_vote = True
                 elif current_section in ["", None]:
@@ -118,6 +124,8 @@ class SessionsSpider(scrapy.Spider):
             agenda_item.update(basic_vote_data)
         else:
             agenda_item = None
+
+        print("attacgent", votes, agenda_item)
         return votes, agenda_item
 
     # parse vote which is positioned in header
@@ -162,33 +170,45 @@ class SessionsSpider(scrapy.Spider):
         return votes
 
     def parse_session(self, response):
-        session_name = response.css(".header-holder h1::text").extract_first().strip()
+        session_name = response.css("h1.header-title::text").extract_first().strip()
         session_notes = {}
+        session_notes_object = {}
         votes = {}
         print(session_name)
 
-        if len(response.css("ul.attached-files")) > 1:
-            for doc in response.css("ul.attached-files")[-1].css("a"):
-                if "Zapisnik" in doc.css("::text").extract_first():
-                    session_notes = {
-                        "url": f'{self.base_url}{doc.css("::attr(href)").extract_first()}',
-                        "title": doc.css("::text").extract_first(),
-                    }
+        if len(response.css("ul.list-files")) > 0:
+            for doc in response.css("ul.list-files")[-1].css("a"):
+                if "Zapisnik" in doc.css("p>span::text").extract_first():
+                    url = doc.css("::attr(href)").extract_first()
+                    if url:
+                        session_notes = {
+                            "url": f'{self.base_url}{url}',
+                            "title": doc.css("span::text").extract_first(),
+                        }
+                elif "Magnetogramski zapis" in doc.css("p>span::text").extract_first():
+                    speeches_file_url = doc.css("::attr(href)").extract_first()
+                    if speeches_file_url.endswith(".docx"):
+                        
+                        session_notes_object = {
+                            "type": f"speeches-docx",
+                            "docx_url": f"{self.base_url}{speeches_file_url}",
+                            "session_name": session_name,
+                            "date": response.meta["date"],
+                            "time": response.meta["time"],
+                        }
+                    else:
+                        session_notes_object = {
+                            "type": f"speeches-pdf",
+                            "pdf_url": f"{self.base_url}{speeches_file_url}",
+                            "session_name": session_name,
+                            "date": response.meta["date"],
+                            "time": response.meta["time"],
+                        }
+                    
 
-        if self.parse_type in ["speeches", None]:
-            docx_files = response.css(".inner .attached-files .docx")
-            for docx_file in docx_files:
-                if "Magnetogramski zapis" in docx_file.css("::text").extract_first():
-                    speeches_file_url = docx_file.css("a::attr(href)").extract_first()
-
-                    yield {
-                        "type": "speeches",
-                        "docx_url": f"{self.base_url}{speeches_file_url}",
-                        "session_name": session_name,
-                        "date": response.meta["date"],
-                        "time": response.meta["time"],
-                        "session_notes": session_notes,
-                    }
+            if session_notes:
+                session_notes_object["session_notes"] = session_notes
+            yield session_notes_object
 
         order = 1
         li_order = 1
@@ -199,7 +219,7 @@ class SessionsSpider(scrapy.Spider):
             "date": response.meta["date"],
             "time": response.meta["time"],
         }
-
+        #import pdb; pdb.set_trace()
         votes = self.parse_voting_for_guest_free_and_presession_votes(
             response, basic_vote_data
         )
@@ -219,29 +239,34 @@ class SessionsSpider(scrapy.Spider):
         for vote in parsed_votes:
             yield vote
 
-        for li in response.css(".list-agenda>li"):
-            agenda_name = li.css(
-                ".file-list-header h3.file-list-open-h3::text"
-            ).extract_first()
-            if self.agenda_name and self.agenda_name != agenda_name:
+        for li in response.css(".council-page--list-published-agendas>li"):
+            agenda_names = li.css(
+                "span.item-title::text"
+            ).extract()
+            if self.agenda_name and self.agenda_name != agenda_names:
                 continue
             # get agenda_names: is using for a) b) c)....
-            agenda_names = li.css(
-                ".file-list-header h3.file-list-open-h3::text"
-            ).extract()
             agenda_names = list(map(str.strip, agenda_names))
-            text_agenda_name = li.css("div>h3::text").extract_first()
+            if len(agenda_names) == 1:
+                agenda_name = agenda_names[0]
+            else:
+                agenda_name = None
+            
             is_added_agenda_item = False
+            if not agenda_names:
+                raise ValueError("Agenda name is not link. Needs to be fixed.")
+                # text_agenda_name = li.css("div>h3::text").extract_first()
 
             notes = {}
             if (
                 agenda_name
+                and isinstance(agenda_name, str)
                 and agenda_name.strip()
                 == "Vprašanja in pobude svetnikov ter odgovori na vprašanja in pobude"
             ):
                 if self.parse_type in ["questions", None]:
-                    for link in li.css(".file-list-item a"):
-                        text = link.css("::text").extract_first()
+                    for link in li.css(".list-files-item a"):
+                        text = link.css("span::text").extract_first()
                         url = link.css("::attr(href)").extract_first()
                         is_added_agenda_item = True
                         yield {
@@ -259,9 +284,9 @@ class SessionsSpider(scrapy.Spider):
             if self.parse_type in ["votes", None]:
                 votes = {}
                 links = []
-                for list_item in li.css(".file-list-item"):
-                    group = list_item.css("h4::text").extract_first()
-                    for link in list_item.css("a"):
+                for group_item in li.css(".list-grouped-documents--item"):
+                    group = group_item.css("h3::text").extract_first()
+                    for link in group_item.css("a"):
 
                         link_text, link_url, enums = self.find_links_and_enums(link)
 
@@ -346,8 +371,8 @@ class SessionsSpider(scrapy.Spider):
         for vote in parsed_votes:
             yield vote
 
-    def find_links_and_enums(self, link):
-        link_text = " ".join(link.css("::text").extract()).strip()
+    def find_links_and_enums(self, link, link_text_path="::text"):
+        link_text = " ".join(link.css(link_text_path).extract()).strip()
         link_url = link.css("::attr(href)").extract_first()
         enums = re.findall(self.find_enumerating, link_text)
         range_enums = re.findall(self.find_range_enumerating, link_text)

@@ -35,7 +35,9 @@ class QuestionParser(BaseParser):
                 "url": data["session_notes"]["url"],
                 "name": data["session_notes"]["title"],
             }
-            self.data_storage.parladata_api.links.set(link_data)
+            if not getattr(session, "added_notes", False):
+                self.data_storage.parladata_api.links.set(link_data)
+                session.added_notes = True
 
         self.session = session
 

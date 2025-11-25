@@ -14,7 +14,7 @@ class ParserState(Enum):
     VOTE = 4
 
 
-class SpeechesParser(DocxParser):
+class SpeechesParserDocx(DocxParser):
     def __init__(self, data, data_storage):
         super().__init__(data_storage, data["docx_url"], "temp_file.docx")
         logging.debug(data["session_name"])
@@ -44,7 +44,9 @@ class SpeechesParser(DocxParser):
                 "url": data["session_notes"]["url"],
                 "name": data["session_notes"]["title"],
             }
-            data_storage.parladata_api.links.set(link_data)
+            if not getattr(session, "added_notes", False):
+                self.data_storage.parladata_api.links.set(link_data)
+                session.added_notes = True
 
         if session.get_speech_count() > 0:
             logging.warning("Speeches of this session was already parsed")
