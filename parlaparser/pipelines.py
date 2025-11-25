@@ -11,7 +11,8 @@ from parlaparser.data_parsers.committee_parser import CommitteeParser
 from parlaparser.data_parsers.committee_session_parser import CommitteeSessionParser
 from parlaparser.data_parsers.person_parser import PersonParser
 from parlaparser.data_parsers.question_parser import QuestionParser
-from parlaparser.data_parsers.speeches_parser import SpeechesParser
+from parlaparser.data_parsers.speeches_parser_docx import SpeechesParserDocx
+from parlaparser.data_parsers.speeches_parser_pdf import SpeechesParserPdf
 from parlaparser.data_parsers.vote_parser import VoteParser
 from parlaparser.settings import (
     API_AUTH,
@@ -38,8 +39,10 @@ class ParlaparserPipeline:
     def process_item(self, item, spider):
         if item["type"] == "person":
             PersonParser(item, self.storage)
-        elif item["type"] == "speeches":
-            SpeechesParser(item, self.storage)
+        elif item["type"] == "speeches-docx":
+            SpeechesParserDocx(item, self.storage)
+        elif item["type"] == "speeches-pdf":
+            SpeechesParserPdf(item, self.storage)
         elif item["type"] == "vote":
             VoteParser(item, self.storage)
         elif item["type"] == "question":

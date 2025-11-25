@@ -35,10 +35,10 @@ class CommitteeSessionParser(BaseParser):
         )
 
         start_time = data["date"]
-        start_time = start_time + timedelta(
-            hours=int(data["time"].split(":")[0]),
-            minutes=int(data["time"].split(":")[1]),
-        )
+        # start_time = start_time + timedelta(
+        #     hours=int(data["time"].split(":")[0]),
+        #     minutes=int(data["time"].split(":")[1]),
+        # )
 
         session = self.data_storage.session_storage.get_or_add_object(
             {

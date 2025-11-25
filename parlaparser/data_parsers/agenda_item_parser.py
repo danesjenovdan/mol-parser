@@ -35,7 +35,9 @@ class AgendaItemParser(BaseParser):
                 "url": data["session_notes"]["url"],
                 "name": data["session_notes"]["title"],
             }
-            self.data_storage.set_link(link_data)
+            if not getattr(session, "added_notes", False):
+                self.data_storage.parladata_api.links.set(link_data)
+                session.added_notes = True
 
         agenda_item = session.agenda_items_storage.get_or_add_object(
             {
