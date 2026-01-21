@@ -25,6 +25,7 @@ class VoteParser(PdfParser):
     def __init__(self, data, data_storage, debug=False):
         super().__init__(data_storage, data["pdf_url"], "temp_file.pdf")
         logging.debug(data["session_name"])
+        print(data["session_name"])
 
         self.debug = debug
 
@@ -109,17 +110,25 @@ class VoteParser(PdfParser):
         lines = "".join(self.pdf).split("\n")
         item = {"links": []}
         revoted = False
+        self.skip_vote = False
         ballots = {}
         for line in lines:
             if self.debug:
                 logging.debug(f"STATE: {state} LINE: {line}")
+                print(f"STATE: {state} LINE: {line}")
             if not line.strip():
-                continue
+                if state == ParserState.PRE_TITLE:
+                    pass
+                elif re.match(r"^\d+/\d+$", line.strip()):
+                    continue
+                else:
+                    continue
             if state == ParserState.META:
                 if line.startswith("Datum:"):
                     date_str = line.split(" ", 1)[1].strip()
                 if "GLASOVANJE" in line:
                     state = ParserState.PRE_TITLE
+                    self.skip_vote = False
             elif state == ParserState.PRE_TITLE:
                 if line.strip().startswith("AD"):
                     pass
@@ -128,6 +137,11 @@ class VoteParser(PdfParser):
                     or line.strip().startswith("PREDLOGU SKLEPA:")
                     or line.strip().startswith("PREDLOG UGOTOVITVENEGA SKLEPA:")
                     or line.strip().startswith("PREDLOG POSTOPKOVNEGA PREDLOGA:")
+                    or re.match(r"PREDLOG SKLEPA k točki [A-Z]:", line.strip())
+                    or re.match(r"\d+\. PREDLOG ŽUPANA ZA SPREMEMBO DNEVNEGA REDA:", line.strip())
+                    or re.match(r"\d+\. AMANDMA župana:", line.strip())
+                    or re.match(r"[A-Z]\) PREDLOG SKLEPA:", line.strip())
+                    or re.match(r"\d+\. PREDLOG SKLEPA:", line.strip())
                 ):
                     # reset tilte and go to title mode
                     if (
@@ -152,10 +166,29 @@ class VoteParser(PdfParser):
                     ):
                         revoted = True
                     state = ParserState.TITLE
+                elif line.strip().startswith("Glasovanje se je začelo"):
+                    print("PRE-TITLE", pre_title)
+                    # get last non empty line as title
+                    title = pre_title.strip().split("\n")[-1]
+                    pre_title = " ".join(pre_title.strip().split("\n")[:-1])
+                    print("TITLE", title)
+                    motion, vote, result = self.prepare_motion(
+                        line,
+                        session,
+                        agenda_item,
+                        date_str,
+                        title
+                    )
+                    state = ParserState.RESULT
+                    
                 else:
                     title = f"{title} {line.strip()}"
                     if not legislation_added:
-                        pre_title = f"{pre_title} {line.strip()}"
+                        line = line.strip()
+                        if line:
+                            pre_title = f"{pre_title} {line}"
+                        else:
+                            pre_title = f"{pre_title}\n"
 
             elif state == ParserState.TITLE:
                 # TODO do this better
@@ -167,33 +200,13 @@ class VoteParser(PdfParser):
                         title = ""
                 if line.strip().startswith("Glasovanje se je začelo"):
                     state = ParserState.RESULT
-                    match = re.search(r"\b(\d{2}:\d{2}:\d{2})\b", line)
-                    if match:
-                        time_str = match.group(1)
-                    start_time = datetime.strptime(
-                        f"{date_str} {time_str}", "%d. %m. %Y %H:%M:%S"
+                    motion, vote, result = self.prepare_motion(
+                        line,
+                        session,
+                        agenda_item,
+                        date_str,
+                        title
                     )
-                    motion = {
-                        "title": title,
-                        "text": title,
-                        "datetime": start_time.isoformat(),
-                        "session": self.session.id,
-                    }
-                    result = False
-                    if agenda_item:
-                        motion.update({"agenda_items": [agenda_item.id]})
-                    if ("osnutek Odloka" in title) or ("osnutek Akta" in title):
-                        motion["tags"] = ["first-reading"]
-                    # TODO set needs_editing if needed
-                    vote = {
-                        "name": title,
-                        "timestamp": start_time.isoformat(),
-                        "session": self.session.id,
-                        "needs_editing": False,
-                    }
-                    if session.vote_storage.check_if_motion_is_parsed(motion):
-                        logging.warning("vote is already parsed")
-                        break
                     continue
                 if (
                     line.strip().startswith("PREDLOG SKLEPA")
@@ -205,6 +218,11 @@ class VoteParser(PdfParser):
                     title = f"{title} {line.strip()}"
                     logging.warning(title)
             elif state == ParserState.RESULT:
+                print("Motion", motion)
+                print(self.skip_vote)
+                if self.skip_vote:
+                    state = ParserState.META
+                    continue
                 if line.strip().startswith("Sprejeto"):
                     result = True
                     motion["result"] = result
@@ -238,6 +256,7 @@ class VoteParser(PdfParser):
 
                     item["revoted"] = revoted
                     revoted = False
+                    print("Motion 2", motion)
                     item["motion"] = motion
                     vote["result"] = result
                     item["vote"] = vote
@@ -270,6 +289,7 @@ class VoteParser(PdfParser):
                 if line.strip().startswith("MESTNA OBČINA LJUBLJANA"):
                     # Save ballots and set parser state to META
                     state = ParserState.META
+                    self.skip_vote = False
 
                     item["ballots"] = ballots
 
@@ -374,8 +394,44 @@ class VoteParser(PdfParser):
 
         self.save_motions()
 
+    def prepare_motion(self, line, session, agenda_item, date_str, title):
+        print("Preparing motion for title:", title)
+        match = re.search(r"\b(\d{2}:\d{2}:\d{2})\b", line)
+        if match:
+            time_str = match.group(1)
+        start_time = datetime.strptime(
+            f"{date_str} {time_str}", "%d. %m. %Y %H:%M:%S"
+        )
+        motion = {
+            "title": title,
+            "text": title,
+            "datetime": start_time.isoformat(),
+            "session": session.id,
+        }
+        result = False
+        if agenda_item:
+            motion.update({"agenda_items": [agenda_item.id]})
+        if ("osnutek Odloka" in title) or ("osnutek Akta" in title):
+            motion["tags"] = ["first-reading"]
+        # TODO set needs_editing if needed
+        vote = {
+            "name": title,
+            "timestamp": start_time.isoformat(),
+            "session": session.id,
+            "needs_editing": False,
+        }
+        if session.vote_storage.check_if_motion_is_parsed(motion):
+            logging.warning("vote is already parsed")
+            self.skip_vote = True
+            motion = {}
+            vote = {}
+            state = ParserState.META
+        return motion, vote, result
+
     def save_motions(self):
+        print("self.items", self.items)
         # delete repeated voting
+
         revoted_names = []
         for item in self.items:
             if item["revoted"]:
