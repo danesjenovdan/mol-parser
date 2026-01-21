@@ -138,7 +138,10 @@ class VoteParser(PdfParser):
                     or line.strip().startswith("PREDLOG UGOTOVITVENEGA SKLEPA:")
                     or line.strip().startswith("PREDLOG POSTOPKOVNEGA PREDLOGA:")
                     or re.match(r"PREDLOG SKLEPA k točki [A-Z]:", line.strip())
-                    or re.match(r"\d+\. PREDLOG ŽUPANA ZA SPREMEMBO DNEVNEGA REDA:", line.strip())
+                    or re.match(
+                        r"\d+\. PREDLOG ŽUPANA ZA SPREMEMBO DNEVNEGA REDA:",
+                        line.strip(),
+                    )
                     or re.match(r"\d+\. AMANDMA župana:", line.strip())
                     or re.match(r"[A-Z]\) PREDLOG SKLEPA:", line.strip())
                     or re.match(r"\d+\. PREDLOG SKLEPA:", line.strip())
@@ -173,14 +176,10 @@ class VoteParser(PdfParser):
                     pre_title = " ".join(pre_title.strip().split("\n")[:-1])
                     print("TITLE", title)
                     motion, vote, result = self.prepare_motion(
-                        line,
-                        session,
-                        agenda_item,
-                        date_str,
-                        title
+                        line, session, agenda_item, date_str, title
                     )
                     state = ParserState.RESULT
-                    
+
                 else:
                     title = f"{title} {line.strip()}"
                     if not legislation_added:
@@ -201,11 +200,7 @@ class VoteParser(PdfParser):
                 if line.strip().startswith("Glasovanje se je začelo"):
                     state = ParserState.RESULT
                     motion, vote, result = self.prepare_motion(
-                        line,
-                        session,
-                        agenda_item,
-                        date_str,
-                        title
+                        line, session, agenda_item, date_str, title
                     )
                     continue
                 if (
@@ -399,9 +394,7 @@ class VoteParser(PdfParser):
         match = re.search(r"\b(\d{2}:\d{2}:\d{2})\b", line)
         if match:
             time_str = match.group(1)
-        start_time = datetime.strptime(
-            f"{date_str} {time_str}", "%d. %m. %Y %H:%M:%S"
-        )
+        start_time = datetime.strptime(f"{date_str} {time_str}", "%d. %m. %Y %H:%M:%S")
         motion = {
             "title": title,
             "text": title,
