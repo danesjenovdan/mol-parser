@@ -219,7 +219,9 @@ class VoteParser(PdfParser):
                 if self.skip_vote:
                     state = ParserState.META
                     continue
-                if line.strip().startswith("Sprejeto") or line.strip().startswith("Ni sprejeto"):
+                if line.strip().startswith("Sprejeto") or line.strip().startswith(
+                    "Ni sprejeto"
+                ):
                     if line.strip().startswith("Sprejeto"):
                         result = True
                     else:
