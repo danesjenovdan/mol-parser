@@ -137,6 +137,7 @@ class VoteParser(PdfParser):
                     or line.strip().startswith("PREDLOGU SKLEPA:")
                     or line.strip().startswith("PREDLOG UGOTOVITVENEGA SKLEPA:")
                     or line.strip().startswith("PREDLOG POSTOPKOVNEGA PREDLOGA:")
+                    or line.strip().startswith("POSTOPKOVNI PREDLOG SKLEPA")
                     or re.match(r"PREDLOG SKLEPA k točki [A-Z]:", line.strip())
                     or re.match(
                         r"\d+\. PREDLOG ŽUPANA ZA SPREMEMBO DNEVNEGA REDA:",
@@ -218,8 +219,11 @@ class VoteParser(PdfParser):
                 if self.skip_vote:
                     state = ParserState.META
                     continue
-                if line.strip().startswith("Sprejeto"):
-                    result = True
+                if line.strip().startswith("Sprejeto") or line.strip().startswith("Ni sprejeto"):
+                    if line.strip().startswith("Sprejeto"):
+                        result = True
+                    else:
+                        result = False
                     motion["result"] = result
 
                     if pre_title.strip() and ")" == pre_title.strip()[1]:
