@@ -5,4 +5,5 @@ pdftotext
 python-docx
 requests
 parladata-base-api==0.3.1
-git+https://github.com/danesjenovdan/classla.git@upgrade-numpy
+classla==2.2.1
+#git+https://github.com/danesjenovdan/classla.git@upgrade-numpy
