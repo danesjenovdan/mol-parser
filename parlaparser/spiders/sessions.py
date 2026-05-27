@@ -311,13 +311,21 @@ class SessionsSpider(scrapy.Spider):
                 # if agenda item has documents and dont have votes (document Glasovanje)
                 if is_added_agenda_item == False and len(agenda_names) > 1:
                     agenda_names_fixed = []
-                    for item in agenda_names:
-                        if item and item[1] != ")":
-                            agenda_names_fixed[-1] += f" {item}"
-                        elif item:
-                            agenda_names_fixed.append(item)
-                        else:
-                            continue
+                    print("if agenda item has documents and dont have votes (document Glasovanje)")
+                    print(agenda_names)
+                    # remove empty and None values
+                    agenda_names = list(filter(None, agenda_names))
+                    if len(agenda_names) == 1:
+                        agenda_names_fixed = agenda_names
+                    else:
+                        for item in agenda_names:
+                            print(item)
+                            if item and item[1] != ")":
+                                agenda_names_fixed[-1] += f" {item}"
+                            elif item:
+                                agenda_names_fixed.append(item)
+                            else:
+                                continue
 
                     for agenda_name in agenda_names_fixed:
                         current_enum = agenda_name[0]
