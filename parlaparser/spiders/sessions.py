@@ -311,7 +311,6 @@ class SessionsSpider(scrapy.Spider):
                 # if agenda item has documents and dont have votes (document Glasovanje)
                 if is_added_agenda_item == False and len(agenda_names) > 1:
                     agenda_names_fixed = []
-                    print("if agenda item has documents and dont have votes (document Glasovanje)")
                     print(agenda_names)
                     # remove empty and None values
                     agenda_names = list(filter(None, agenda_names))
